@@ -654,15 +654,6 @@ fn the_control_file_replaces_the_one_a_previous_run_left() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// X11 startup notification and docks match a window to its launcher by `StartupWMClass`,
-/// so it has to be the class the window carries: the app id, on Wayland and X11 alike.
-#[test]
-fn the_desktop_entry_names_the_window_class() {
-    let entry = include_str!("../../../packaging/linux/ai.storyteller.pdfcraft.desktop");
-    let class = entry.lines().find_map(|line| line.strip_prefix("StartupWMClass="));
-    assert_eq!(class, Some(super::APP_ID));
-}
-
 // Regression test for #246: `eprintln!` panics when standard error is a broken pipe (a GUI
 // launch on Windows), and a panic inside the panic hook aborts the process. The start-up
 // path and the hook must write to standard error without it.

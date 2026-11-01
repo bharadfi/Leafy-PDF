@@ -588,23 +588,11 @@ mod tests {
         assert!((s - 1.0).abs() < 1e-9 && cut, "{s} {cut}");
     }
 
-    // Issue #211: Finder lists the app under Open With > Recommended only when the
-    // bundle claims PDFs by UTI (#176).
+    // The app id is the one Leafy PDF registers under; a rename must change it on purpose.
     #[test]
-    fn macos_bundle_claims_pdf_by_uti() {
-        let pdf = pdf_document_type();
-        assert!(pdf.contains("<string>com.adobe.pdf</string>"), "claim PDFs by UTI, not just extension/MIME");
-        assert!(pdf.contains("<string>Editor</string>"), "PDF role stays Editor");
-        assert!(pdf.contains("<string>Alternate</string>"), "rank stays Alternate: offered without taking over Preview");
-        assert!(pdf.contains("<key>CFBundleTypeIconFile</key>"), "declares document icon file for Finder");
-    }
-
-    // The bundle id must match the app id the binary uses; renames change both (#174).
-    #[test]
-    fn macos_bundle_id_matches_app_id() {
-        assert!(read("packaging/macos/Info.plist.in").contains("<string>app.leafypdf.LeafyPdf</string>"), "bundle id");
+    fn app_id_is_the_leafy_pdf_id() {
         let main = read("apps/pdfcraft/src/main.rs");
-        assert!(main.contains(r#"const APP_ID: &str = "app.leafypdf.LeafyPdf""#), "APP_ID drifted from the bundle id");
+        assert!(main.contains(r#"const APP_ID: &str = "app.leafypdf.LeafyPdf""#), "APP_ID changed");
     }
 
     // Committed file with `<!-- -->` comments stripped, so a commented-out claim cannot pass.
@@ -618,17 +606,5 @@ mod tests {
         }
         out.push_str(rest);
         out
-    }
-
-    // The `<dict>` inside `CFBundleDocumentTypes` that mentions the PDF UTI: scoped so a
-    // UTI string anywhere else cannot satisfy the asserts above.
-    fn pdf_document_type() -> String {
-        let plist = read("packaging/macos/Info.plist.in");
-        let docs = plist.split("<key>CFBundleDocumentTypes</key>").nth(1).expect("CFBundleDocumentTypes");
-        docs.split("<dict>")
-            .map(|chunk| chunk.split("</dict>").next().unwrap_or(""))
-            .find(|chunk| chunk.contains("com.adobe.pdf"))
-            .expect("a document type for com.adobe.pdf")
-            .to_string()
     }
 }

@@ -31,8 +31,8 @@ if [[ -z "$VERSION" ]]; then
 fi
 export VERSION
 
-# A labelled build says so in `--version` and About (pdfcraft_engine::build_info) and in its
-# package release (packaging/linux/nfpm.yaml), so it can't be mistaken for the release.
+# A labelled build says so in `--version` and About (pdfcraft_engine::build_info), so it can't
+# be mistaken for the release.
 if [[ -n "${PDFCRAFT_BUILD_LABEL:-}" ]]; then
   case "$PDFCRAFT_BUILD_LABEL" in
     *[!A-Za-z0-9.]* | .* | *.)

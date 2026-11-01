@@ -31,6 +31,10 @@ removed and why, so the removed code does not need to be kept around. Internal c
 | The launcher-only branch of the install-policy checker | `packaging/windows/check-install-policy.ps1` |
 | The `view.check-for-updates` parity entry | `parity/acrobat-features.toml` |
 | Tests for the removed features | `crates/ui-egui/tests/it/links.rs`, `updates.rs`; the layout tests now measure against the shortcuts button instead of Discord |
+| Linux (AppImage, deb, rpm, Flatpak), macOS (app bundle, DMG, notarization) and FreeBSD packaging | `packaging/linux/`, `packaging/macos/`, `packaging/freebsd/` (FreeBSD's script was built on the Linux folder) |
+| Tests that read those files | the desktop-entry test in `apps/pdfcraft`, the X11 desktop-file check in `winit_x11_dpi.rs`, the Info.plist checks in `xtask/src/gates.rs` and `macos_association.rs` |
+| The two macOS DMG background assets | `ATTRIBUTION.toml` / `ATTRIBUTION.md` |
+| Upstream's multi-platform release guide | `docs/releasing.md`, replaced by a short guide to the Windows installer build |
 
 ## Renamed to Leafy PDF
 
@@ -59,8 +63,8 @@ removed and why, so the removed code does not need to be kept around. Internal c
 - The MIT OR Apache-2.0 licences, `NOTICE`, `ATTRIBUTION.*` and the "Copyright (c) the PdfCraft
   contributors" notice in the file properties and About credits. Leafy PDF is derived work and keeps them.
 - Text written into PDFs (signature appearance wording, producer strings).
-- The Linux, macOS, FreeBSD and Flatpak packaging scripts still name the old program. They were not
-  built or tested here; renaming `bin/pdfcraft` to `bin/leafypdf` there is the first step if they are used.
+- The application code for other operating systems (windowing, file associations, keychain access) is
+  unchanged and not tested here; this project builds and ships a Windows x64 installer only.
 
 ## Logo, fonts, size and signing
 
