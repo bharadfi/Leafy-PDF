@@ -41,6 +41,7 @@ mod reopen;
 mod settings;
 mod single_instance;
 mod text_scale;
+mod thumbnail;
 #[cfg(test)]
 #[path = "windows_manifest.rs"]
 mod windows_manifest;
@@ -63,9 +64,11 @@ Usage: pdfcraft [options] [files…]
 Opens the files in the PdfCraft desktop app.
 
 Options:
-  --new-window                open a window of its own instead of passing the files to a running PdfCraft
+  --new-window                open a window of its own instead of passing the files to a running Leafy PDF
   --create-images [images…]   put the images in one PDF and ask for the page DPI
   --control <file>            enable the UI control channel (pdfcraft-cli ui --control <file> …)
+  --thumbnail <pdf> <out> <size>
+                              write the PDF's first page as a picture for Explorer's thumbnail handler, and exit
   --page N, --zoom 150, --layout continuous, --theme dark, …
                               view settings applied once the files are open
   -h, --help                  print this and exit
@@ -162,6 +165,12 @@ fn rejoin_split_paths(args: Vec<String>, exists: impl Fn(&str) -> bool) -> Vec<S
 }
 
 fn main() -> eframe::Result {
+    // Explorer's thumbnail handler (crates/thumbs) asks for one picture and no window: before the logger,
+    // the panic hook and the single-instance hand-off, none of which belong to that call.
+    if std::env::args().nth(1).as_deref() == Some("--thumbnail") {
+        let args: Vec<String> = std::env::args().skip(2).collect();
+        std::process::exit(if thumbnail::run(&args) == std::process::ExitCode::SUCCESS { 0 } else { 1 });
+    }
     // First, so the panic hook and every start-up warning are recorded (`logging`).
     let logger = logging::install();
     // Last-resort guard (AGENTS.md §4): commands, edits, opens and saves catch panics and report

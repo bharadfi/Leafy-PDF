@@ -7331,6 +7331,43 @@ fn comparing_documents_through_tools() {
 }
 
 #[test]
+fn comparing_only_some_pages_through_tools() {
+    let dir = workdir("compare-pages");
+    let mut a = auto(&dir);
+    let long = |first: &str| {
+        let mut text = format!("{first} opens the agreement.\n\n");
+        for i in 0..150 {
+            text.push_str(&format!("Clause {i} stays the same on every later page.\n\n"));
+        }
+        text
+    };
+    let v1 = ok(&mut a, "doc_create", json!({ "from": "text", "text": long("Alpha") }))["doc"].as_u64().unwrap();
+    let v2 = ok(&mut a, "doc_create", json!({ "from": "text", "text": long("Bravo") }))["doc"].as_u64().unwrap();
+    let count = |r: &serde_json::Value| (r["replaced"].as_u64().unwrap(), r["inserted"].as_u64().unwrap(), r["deleted"].as_u64().unwrap());
+    // The only difference is on page 1.
+    assert_eq!(count(&ok(&mut a, "doc_compare", json!({ "doc": v2, "other": v1 }))), (1, 0, 0));
+    assert_eq!(count(&ok(&mut a, "doc_compare", json!({ "doc": v2, "other": v1, "from": 1, "to": 1, "other_from": 1, "other_to": 1 }))), (1, 0, 0));
+    let later = json!({ "doc": v2, "other": v1, "from": 2, "other_from": 2 });
+    assert_eq!(ok(&mut a, "doc_compare", later.clone())["identical"], true);
+    // The visual comparison and the report and the comments follow the same pages.
+    let mut visual_later = later.clone();
+    visual_later["visual"] = json!(true);
+    assert!(ok(&mut a, "doc_compare", visual_later)["visual"].as_array().unwrap().is_empty());
+    let mut report = later.clone();
+    report["path"] = json!("later.pdf");
+    ok(&mut a, "doc_compare_report", report);
+    assert!(std::fs::read(dir.join("later.pdf")).unwrap().starts_with(b"%PDF"));
+    assert_eq!(ok(&mut a, "doc_compare_mark", later)["comments"], 0);
+    assert_eq!(ok(&mut a, "doc_compare_mark", json!({ "doc": v2, "other": v1, "from": 1, "to": 1, "other_from": 1, "other_to": 1 }))["comments"], 1);
+    // A range that makes no sense is refused with the reason.
+    for bad in [json!({ "from": 0 }), json!({ "from": 3, "to": 2 }), json!({ "other_from": 5, "other_to": 4 })] {
+        let mut args = json!({ "doc": v2, "other": v1 });
+        args.as_object_mut().unwrap().extend(bad.as_object().unwrap().clone());
+        assert!(a.call("doc_compare", &args).is_err(), "{args}");
+    }
+}
+
+#[test]
 fn actions_through_tools() {
     let dir = workdir("actions");
     let mut a = auto(&dir);

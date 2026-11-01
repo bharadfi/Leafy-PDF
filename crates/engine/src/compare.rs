@@ -26,6 +26,25 @@ pub fn colour(kind: Kind) -> crate::Rgb {
     }
 }
 
+/// Which pages of each document a comparison covers: `None` is the whole document, otherwise 0-based
+/// pages with the end excluded. The pages of the two ranges are matched in order, first with first.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Scope {
+    pub old: Option<std::ops::Range<usize>>,
+    pub new: Option<std::ops::Range<usize>>,
+}
+
+impl Scope {
+    /// The pages of `doc` that `range` covers, kept inside the document.
+    fn pages(range: &Option<std::ops::Range<usize>>, doc: &crate::Document) -> std::ops::Range<usize> {
+        let n = doc.info.pages.len();
+        match range {
+            Some(r) => r.start.min(n)..r.end.min(n),
+            None => 0..n,
+        }
+    }
+}
+
 impl crate::Document {
     /// Standards ▸ Verify PDF/A: the rules the document breaks for `level`.
     pub fn pdfa_verify(&self, level: pdfcraft_preflight::Level) -> Vec<pdfcraft_preflight::Issue> {
@@ -39,10 +58,15 @@ impl crate::Document {
 
     /// Every word of the document in reading order, with page and box.
     pub fn words(&self) -> Vec<pdfcraft_compare::Word> {
+        self.words_in(0..self.info.pages.len())
+    }
+
+    /// The words of the pages in `pages` (0-based, end excluded), in reading order, with page and box.
+    pub fn words_in(&self, pages: std::ops::Range<usize>) -> Vec<pdfcraft_compare::Word> {
         let config = pdfcraft_render::RenderConfig { password: self.password.as_deref().map(Arc::from), ..Default::default() };
         let mut r = pdfcraft_render::PageRenderer::new(self.bytes.clone(), config);
         let mut out = Vec::new();
-        for (page, info) in self.info.pages.iter().enumerate() {
+        for (page, info) in self.info.pages.iter().enumerate().skip(pages.start).take(pages.len()) {
             let res = r.render(pdfcraft_render::RenderRequest { page, kind: pdfcraft_render::RequestKind::Text, scale: 1.0, ..Default::default() });
             if let Some(t) = res.text {
                 out.extend(crate::js::page_words(&t, info).into_iter().map(|(text, rect)| pdfcraft_compare::Word { text, page, rect }));
@@ -56,16 +80,27 @@ impl Session {
     /// Compare files: the text differences from document `old` to document `new`. The result
     /// carries both documents' text, so both must allow copying it.
     pub fn compare(&self, old: DocId, new: DocId) -> Result<Comparison, EditError> {
+        self.compare_in(old, new, &Scope::default())
+    }
+
+    /// [`Self::compare`] for the pages `scope` covers.
+    pub fn compare_in(&self, old: DocId, new: DocId, scope: &Scope) -> Result<Comparison, EditError> {
         let a = self.get(old).ok_or(EditError::NoDocument)?;
         let b = self.get(new).ok_or(EditError::NoDocument)?;
         a.check_copying()?;
         b.check_copying()?;
-        Ok(pdfcraft_compare::compare(&a.words(), &b.words()))
+        Ok(pdfcraft_compare::compare(&a.words_in(Scope::pages(&scope.old, a)), &b.words_in(Scope::pages(&scope.new, b))))
     }
 
     /// Visual compare: regions where page n of `new` looks different from page n of `old`
     /// (rendered at `dpi`), as (page, user-space box in `new`).
     pub fn compare_visual(&self, old: DocId, new: DocId, dpi: f32) -> Result<Vec<(usize, [f64; 4])>, EditError> {
+        self.compare_visual_in(old, new, dpi, &Scope::default())
+    }
+
+    /// [`Self::compare_visual`] for the pages `scope` covers: page k of the old range against page k of
+    /// the new one, reported by the new page's number.
+    pub fn compare_visual_in(&self, old: DocId, new: DocId, dpi: f32, scope: &Scope) -> Result<Vec<(usize, [f64; 4])>, EditError> {
         let a = self.get(old).ok_or(EditError::NoDocument)?;
         let b = self.get(new).ok_or(EditError::NoDocument)?;
         let renderer = |d: &crate::Document| {
@@ -77,9 +112,11 @@ impl Session {
         let (mut ra, mut rb) = (renderer(a), renderer(b));
         let scale = dpi.clamp(18.0, 150.0) / 72.0;
         let mut out = Vec::new();
-        for (page, info) in b.info.pages.iter().enumerate().take(a.info.pages.len()) {
-            let req = pdfcraft_render::RenderRequest { page, scale, ..Default::default() };
-            let (x, y) = (ra.render(req), rb.render(req));
+        // The longer range's extra pages have nothing to meet.
+        for (old_page, page) in Scope::pages(&scope.old, a).zip(Scope::pages(&scope.new, b)) {
+            let info = &b.info.pages[page];
+            let request = |page| pdfcraft_render::RenderRequest { page, scale, ..Default::default() };
+            let (x, y) = (ra.render(request(old_page)), rb.render(request(page)));
             if x.error.is_some() || y.error.is_some() {
                 continue;
             }
@@ -95,7 +132,12 @@ impl Session {
 
     /// The compare report as a new PDF (not opened).
     pub fn compare_report(&self, old: DocId, new: DocId) -> Result<Arc<Vec<u8>>, EditError> {
-        let c = self.compare(old, new)?;
+        self.compare_report_in(old, new, &Scope::default())
+    }
+
+    /// [`Self::compare_report`] for the pages `scope` covers.
+    pub fn compare_report_in(&self, old: DocId, new: DocId, scope: &Scope) -> Result<Arc<Vec<u8>>, EditError> {
+        let c = self.compare_in(old, new, scope)?;
         let name = |id| self.get(id).map(|d| d.name.clone()).unwrap_or_default();
         self.create_report("Compare Report", &pdfcraft_compare::report(&c, &name(old), &name(new)))
     }
@@ -104,7 +146,12 @@ impl Session {
     /// (blue, green) and a note where text was deleted (red), authored "Compare". One undoable
     /// step; returns how many comments were added.
     pub fn mark_differences(&mut self, old: DocId, new: DocId) -> Result<usize, EditError> {
-        let c = self.compare(old, new)?;
+        self.mark_differences_in(old, new, &Scope::default())
+    }
+
+    /// [`Self::mark_differences`] for the pages `scope` covers.
+    pub fn mark_differences_in(&mut self, old: DocId, new: DocId, scope: &Scope) -> Result<usize, EditError> {
+        let c = self.compare_in(old, new, scope)?;
         let mut edits = Vec::new();
         for ch in &c.changes {
             let color = colour(ch.kind);

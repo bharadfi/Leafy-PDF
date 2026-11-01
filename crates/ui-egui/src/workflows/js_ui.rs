@@ -453,6 +453,25 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
             .small()
             .color(t.text_muted),
     );
+    ui.horizontal(|ui| {
+        ui.label(tl!("Autosave unsaved changes every"));
+        for minutes in crate::AUTOSAVE_MINUTES {
+            widgets::radio_value(ui, &mut app.autosave_minutes, minutes, crate::i18n::fmt(tl!("{n} min"), &[("n", &minutes.to_string())]));
+        }
+    });
+    ui.label(
+        egui::RichText::new(tl!("Changes are saved to a recovery folder this often, so a crash loses at most this much."))
+            .small()
+            .color(t.text_muted),
+    );
+    ui.horizontal(|ui| {
+        ui.label(tl!("Recent files remembered"));
+        for limit in crate::RECENT_LIMITS {
+            if widgets::radio_value(ui, &mut app.recent_limit, limit, limit.to_string()).changed() {
+                app.recent.truncate(limit);
+            }
+        }
+    });
     let defaults = &mut app.view_defaults;
     ui.horizontal(|ui| {
         ui.label(tl!("Default page display"));
@@ -499,6 +518,23 @@ pub(crate) fn preferences_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tok
     ui.add(widgets::checkbox(&mut app.reload_changed_files, tl!("Reload documents when their files change on disk")));
     // The notice's "Don't show again" turns this off (#4035); the restrictions stay either way.
     ui.add(widgets::checkbox(&mut app.show_secured_notice, tl!("Show a notice when a document is secured")));
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let before = app.trust_windows_roots;
+        ui.add(widgets::checkbox(&mut app.trust_windows_roots, tl!("Trust root certificates from Windows when validating signatures")));
+        if app.trust_windows_roots != before {
+            app.apply_windows_roots();
+        }
+        let note = if app.trust_windows_roots {
+            crate::i18n::fmt(
+                tl!("On: a signature whose certificate chains to one of the {n} roots Windows trusts shows as valid without adding it yourself."),
+                &[("n", &app.session.os_trusted_roots().len().to_string())],
+            )
+        } else {
+            tl!("Off: only certificates you add to Trusted certificates count as trusted.").to_string()
+        };
+        ui.label(egui::RichText::new(note).small().color(t.text_muted));
+    }
     ui.horizontal(|ui| {
         ui.label(tl!("Scroll speed (mouse wheel and arrow keys)"));
         for speed in crate::scroll_speed::ScrollSpeed::ALL {

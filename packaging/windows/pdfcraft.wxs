@@ -124,6 +124,21 @@
       <RegistryValue Root="HKMU" Key="Software\LeafyPdf" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
       </Component>
 
+      <!-- Explorer's thumbnail handler (crates/thumbs): a snapshot of the first page for PDF files, the Leafy PDF
+           tile for password-protected ones. It is registered on Leafy PDF's own file type and application key only, so it applies
+           where Leafy PDF is the default app for .pdf and never replaces another app's handler. The library
+           runs leafypdf.exe with its thumbnail option from this folder; uninstalling removes both together. -->
+      <Component Id="LeafyThumbnailHandler" Guid="B00FA49E-5E1C-40DB-A12D-6B116BA66D06">
+        <File Id="LeafyThumbsDll" Source="$(var.BinDir)\leafypdf_thumbs.dll" KeyPath="yes" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\CLSID\{93E5ACCA-84E1-4B0B-A11A-2AACD2262036}" Value="Leafy PDF thumbnail handler" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\CLSID\{93E5ACCA-84E1-4B0B-A11A-2AACD2262036}\InprocServer32" Value="[#LeafyThumbsDll]" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\CLSID\{93E5ACCA-84E1-4B0B-A11A-2AACD2262036}\InprocServer32" Name="ThreadingModel" Value="Apartment" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\LeafyPdf.Document\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" Value="{93E5ACCA-84E1-4B0B-A11A-2AACD2262036}" Type="string" />
+        <!-- Windows reads the handlers of the app the user picked from "Open with" (the Applications key) when it
+             has no ProgID of its own to go by, so the same handler is named there. -->
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\leafypdf.exe\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" Value="{93E5ACCA-84E1-4B0B-A11A-2AACD2262036}" Type="string" />
+      </Component>
+
       <!-- Shortcuts (#143) are plain links to leafypdf.exe, not advertised MSI shortcuts: advertised
            ones point at a Windows Installer descriptor rather than the program, which Windows can't
            use as a file handler (#107), and 0.2.1's advertised one went missing from the Start menu
@@ -191,10 +206,7 @@
         <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.jpx\shell\LeafyPdf.CreatePdf\command" Value="&quot;[#LeafyExe]&quot; --create-images &quot;%1&quot;" Type="string" />
       </Component>
 
-      <!-- The embedded PDF icon's ISC notice and project licences travel with the binaries. -->
-      <Component Id="LeafyDocumentIconLicense">
-        <File Id="LeafyDocumentIconLicenseFile" Source="$(var.BinDir)\LICENSE-document.txt" KeyPath="yes" />
-      </Component>
+      <!-- The project licences travel with the binaries. -->
       <Component Id="LeafyMitLicense">
         <File Id="LeafyMitLicenseFile" Source="$(var.BinDir)\LICENSE-MIT" KeyPath="yes" />
       </Component>

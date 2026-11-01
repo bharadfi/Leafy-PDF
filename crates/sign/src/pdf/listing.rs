@@ -411,11 +411,7 @@ fn mark_resources(status: Status) -> Dict {
 /// `caption` gives, for a field whose signature verifies, the line Acrobat writes in place of the
 /// signer's "Signature Not Verified" caption (e.g. "Document certified by NAME <email>."); a field it
 /// gives none for keeps the signer's caption, which is then true.
-pub fn with_validity_marks(
-    doc: &Document,
-    verdict: &dyn Fn(&str) -> Option<Status>,
-    caption: &dyn Fn(&str) -> Option<String>,
-) -> Option<Document> {
+pub fn with_validity_marks(doc: &Document, verdict: &dyn Fn(&str) -> Option<Status>, caption: &dyn Fn(&str) -> Option<String>) -> Option<Document> {
     enum Change {
         Mark(Status),
         Caption(String),
@@ -620,7 +616,7 @@ mod caption_tests {
         assert!(out.contains("(Document certified by NAGAMANICKAM SAYIRAJ) Tj"), "{out}");
         assert!(out.contains("(<NAGAMANICKAM.SAYIRAJ@INCOMETAX.GOV.IN>.) Tj"), "{out}");
         let size: f64 = out.split(" Tf").next().unwrap().rsplit(' ').next().unwrap().parse().unwrap();
-        assert!(size < 11.72 && size >= 3.0, "shrunk to fit: {size}");
+        assert!((3.0..11.72).contains(&size), "shrunk to fit: {size}");
         // The text stays inside the 120-wide layer at the shrunk size (0.6 em per character).
         assert!(size * 0.6 * 43.0 <= 120.0, "{size}");
     }

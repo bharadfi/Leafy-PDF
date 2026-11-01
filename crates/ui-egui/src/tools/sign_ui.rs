@@ -588,6 +588,35 @@ impl PdfCraftApp {
         }
     }
 
+    /// Preferences ▸ Trust root certificates from Windows: load the roots Windows trusts (or drop them) and
+    /// revalidate every signature. They are held apart from the user's own trusted certificates.
+    pub fn apply_windows_roots(&mut self) {
+        let roots = if self.trust_windows_roots { self.windows_roots() } else { Vec::new() };
+        self.session.set_os_trusted_roots(roots);
+        for view in &mut self.views {
+            view.invalidate_content();
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn windows_roots(&mut self) -> Vec<Certificate> {
+        match pdfcraft_engine::sign::windows::trusted_roots() {
+            Ok(roots) => roots,
+            Err(e) => {
+                self.trust_windows_roots = false;
+                self.notify_error(e);
+                Vec::new()
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn windows_roots(&mut self) -> Vec<Certificate> {
+        self.trust_windows_roots = false;
+        self.notify_tr("Windows' trusted roots are only available on Windows");
+        Vec::new()
+    }
+
     /// A file name without its PDF extension, for snapshot tab names.
     fn file_stem(name: &str) -> String {
         name.trim_end_matches(".pdf").trim_end_matches(".PDF").to_string()

@@ -1,0 +1,31 @@
+[package]
+name = "pdfcraft-thumbs"
+description = "Leafy PDF's Windows Explorer thumbnail handler: a small COM library that asks leafypdf.exe for a page picture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "leafypdf_thumbs"
+crate-type = ["cdylib"]
+
+# This crate does NOT inherit `[workspace.lints]`: a COM library cannot be written without `unsafe`, which
+# the workspace forbids (the other crates reach Win32 through small audited wrappers instead). All of the
+# `unsafe` in the project is here, in `lib.rs`, around the COM calls; the PDF is never parsed in this crate.
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[target.'cfg(windows)'.dependencies]
+# `#[implement]` expands to paths in `windows_core`, so the crate must depend on it directly.
+windows-core = "0.62"
+windows = { version = "0.62", default-features = false, features = [
+  "std",
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_System_SystemServices",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+] }

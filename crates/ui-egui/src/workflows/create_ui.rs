@@ -18,10 +18,14 @@ pub struct ImageImport {
     pub images: Vec<(String, Vec<u8>)>,
     pub choice: ResolutionChoice,
     pub dpi: f64,
+    /// The pages came from a scanner, so the step offers to scan another one.
+    pub from_scanner: bool,
 }
 
 pub(crate) fn image_import_body(ui: &mut egui::Ui, app: &mut PdfCraftApp) -> (bool, bool) {
     ui.heading(tl!("Create PDF from images"));
+    // While the scan window is open the pages are not all here yet.
+    let scanning = app.scanner.busy();
     let Some(draft) = app.image_import.as_mut() else { return (false, true) };
     ui.label(crate::i18n::fmt(tl!("Selected image files: {count}"), &[("count", &draft.images.len().to_string())]));
     ui.add_space(8.0);
@@ -34,10 +38,20 @@ pub(crate) fn image_import_body(ui: &mut egui::Ui, app: &mut PdfCraftApp) -> (bo
     ui.add_space(12.0);
     let mut go = false;
     let mut cancel = false;
+    let mut scan_more = false;
     ui.horizontal(|ui| {
-        go = crate::widgets::pill_button(ui, tl!("Create"), true).clicked();
+        go = ui.add_enabled_ui(!scanning, |ui| crate::widgets::pill_button(ui, tl!("Create"), true)).inner.clicked();
+        if draft.from_scanner {
+            scan_more = ui.add_enabled_ui(!scanning, |ui| crate::widgets::pill_button(ui, tl!("Scan another page"), false)).inner.clicked();
+        }
         cancel = crate::widgets::pill_button(ui, tl!("Cancel"), false).clicked();
     });
+    if scanning {
+        ui.label(tl!("Waiting for the scan window…"));
+    }
+    if scan_more {
+        app.create_from_scanner();
+    }
     (go, cancel)
 }
 
@@ -200,11 +214,11 @@ impl PdfCraftApp {
         if images.is_empty() {
             return;
         }
-        self.image_import = Some(ImageImport { images, choice: ResolutionChoice::Image, dpi: 300.0 });
+        self.image_import = Some(ImageImport { images, choice: ResolutionChoice::Image, dpi: 300.0, from_scanner: false });
         self.dialog = Some(crate::Dialog::CreateImages);
     }
 
-    pub(crate) fn finish_image_import(&mut self) {
+    pub fn finish_image_import(&mut self) {
         let Some(draft) = self.image_import.take() else { return };
         let resolution = match draft.choice {
             ResolutionChoice::Image => pdfcraft_engine::ImageResolution::Embedded,

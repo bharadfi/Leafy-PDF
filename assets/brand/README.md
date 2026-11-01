@@ -14,8 +14,9 @@ wordmark text or the file's embedded metadata.
 The Windows executable embeds `leafypdf.ico` (`apps/pdfcraft/build.rs`); the window icon is `leafypdf-256.png`
 (`apps/pdfcraft/src/main.rs`); the installer uses `leafypdf.ico` too (`packaging/windows/package.ps1`).
 
-The PDF document icon (`assets/app-icon/pdfcraft-document.ico`, a Lucide outline) and the PdfCraft lion files in
-`assets/app-icon/` are unchanged: the lion files are still used by the Linux, macOS and FreeBSD packaging.
+The same icon is the PDF file icon (resource 2 of `leafypdf.exe`) and the picture shown for a password-protected PDF
+(`leafypdf-256.png`, see `apps/pdfcraft/src/thumbnail.rs`). The PdfCraft lion files in `assets/app-icon/` are not used
+by Leafy PDF.
 
 Licence: `MIT OR Apache-2.0`, like the rest of Leafy PDF (see [LICENSE.txt](LICENSE.txt)). The logo was generated with AI
 assistance at the owner's request; the licence text says so. Every file above has an entry in `ATTRIBUTION.toml`

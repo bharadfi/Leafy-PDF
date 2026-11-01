@@ -1160,6 +1160,96 @@ fn default_workspace_mode_persists_and_tolerates_invalid_settings() {
 }
 
 #[test]
+fn autosave_interval_and_recent_limit_are_saved_and_bad_values_are_ignored() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert_eq!((app.autosave_minutes, app.recent_limit), (1, 12), "today's behaviour is the default");
+    app.autosave_minutes = 5;
+    app.recent_limit = 20;
+    let mut restored = PdfCraftApp::new();
+    restored.set_option("language", "en").unwrap();
+    restored.restore(&app.persist());
+    assert_eq!((restored.autosave_minutes, restored.recent_limit), (5, 20));
+    for json in [
+        r#"{"autosave_minutes": 0, "recent_limit": 0}"#,
+        r#"{"autosave_minutes": 7, "recent_limit": 13}"#,
+        r#"{"autosave_minutes": "x", "recent_limit": -1}"#,
+        r#"{"autosave_minutes": 99999999999, "recent_limit": 99999999999}"#,
+    ] {
+        let mut other = PdfCraftApp::new();
+        other.set_option("language", "en").unwrap();
+        other.restore(json);
+        assert_eq!((other.autosave_minutes, other.recent_limit), (1, 12), "{json}");
+    }
+}
+
+#[test]
+fn scanned_pages_gather_in_one_pdf_before_it_is_created() {
+    fn page(shade: u8) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, 2, 2);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[shade; 16]).unwrap();
+        writer.finish().unwrap();
+        out
+    }
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert!(app.image_import.is_none());
+    app.take_scanned_page(page(10));
+    let draft = app.image_import.as_ref().expect("the first scan starts the PDF");
+    assert_eq!((draft.images.len(), draft.from_scanner), (1, true));
+    assert_eq!(draft.images[0].0, "Scan 1.png");
+    assert_eq!(app.dialog, Some(pdfcraft_ui_egui::Dialog::CreateImages));
+    // Scanning another page adds to the same PDF instead of starting a second one.
+    app.take_scanned_page(page(200));
+    app.take_scanned_page(page(90));
+    let draft = app.image_import.as_ref().unwrap();
+    assert_eq!(draft.images.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(), ["Scan 1.png", "Scan 2.png", "Scan 3.png"]);
+    assert!(draft.images.iter().all(|(_, bytes)| bytes.starts_with(b"\x89PNG")));
+    // Creating it makes one document with a page for each scan.
+    app.finish_image_import();
+    let id = app.active_ids().map(|(_, id)| id).expect("the new PDF is open");
+    assert_eq!(app.session.get(id).unwrap().info.pages.len(), 3);
+}
+
+#[test]
+fn trusting_windows_roots_is_off_by_default_and_remembered_when_turned_on() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert!(!app.trust_windows_roots, "off by default, as in Acrobat");
+    assert!(app.session.os_trusted_roots().is_empty());
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&app.persist()).unwrap()["trust_windows_roots"], false);
+    // Restoring "off", a missing value or a wrong type changes nothing.
+    for json in [r#"{"trust_windows_roots": false}"#, "{}", r#"{"trust_windows_roots": "yes"}"#, r#"{"trust_windows_roots": 1}"#] {
+        let mut other = PdfCraftApp::new();
+        other.set_option("language", "en").unwrap();
+        other.restore(json);
+        assert!(!other.trust_windows_roots && other.session.os_trusted_roots().is_empty(), "{json}");
+    }
+    // Turned on, it loads the roots Windows trusts (and is saved); on another system it turns itself off again.
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    app.trust_windows_roots = true;
+    app.apply_windows_roots();
+    if cfg!(target_os = "windows") {
+        assert!(app.trust_windows_roots && app.session.os_trusted_roots().len() >= 5);
+        assert!(app.session.trusted_certificates().is_empty(), "the user's own list is untouched");
+        let mut restored = PdfCraftApp::new();
+        restored.set_option("language", "en").unwrap();
+        restored.restore(&app.persist());
+        assert!(restored.trust_windows_roots && restored.session.os_trusted_roots().len() >= 5);
+        app.trust_windows_roots = false;
+        app.apply_windows_roots();
+        assert!(app.session.os_trusted_roots().is_empty());
+    } else {
+        assert!(!app.trust_windows_roots);
+    }
+}
+
+#[test]
 fn newly_opened_pdfs_use_the_default_workspace() {
     use pdfcraft_ui_egui::{LeftPanel, Mode};
     let mut app = PdfCraftApp::new();

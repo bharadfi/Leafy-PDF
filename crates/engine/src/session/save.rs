@@ -231,15 +231,41 @@ impl Session {
         }
     }
 
-    /// The certificates trusted for signing.
+    /// The certificates the user trusts for signing (not the Windows roots, see
+    /// [`Self::os_trusted_roots`]).
     pub fn trusted_certificates(&self) -> &[pdfcraft_sign::Certificate] {
-        &self.trust.certs
+        &self.user_certs
+    }
+
+    /// The roots the operating system trusts that are being counted as trusted too (none unless asked for).
+    pub fn os_trusted_roots(&self) -> &[pdfcraft_sign::Certificate] {
+        &self.os_roots
     }
 
     /// Replace the trusted certificates, revalidate every open document's signatures,
     /// and rebuild its display copy and renderer to match (working file untouched,
     /// generation/dirty unchanged: trust alone is not an edit).
     pub fn set_trusted_certificates(&mut self, certs: Vec<pdfcraft_sign::Certificate>) {
+        self.user_certs = certs;
+        self.rebuild_trust();
+    }
+
+    /// Count `roots` (the roots Windows trusts) as trusted as well, or pass none to stop. They are kept apart
+    /// from the user's own list: never saved, never listed as the user's choice. Revalidates like
+    /// [`Self::set_trusted_certificates`].
+    pub fn set_os_trusted_roots(&mut self, roots: Vec<pdfcraft_sign::Certificate>) {
+        self.os_roots = roots;
+        self.rebuild_trust();
+    }
+
+    /// The signature checker's trust: the user's certificates and the operating system's roots together.
+    fn rebuild_trust(&mut self) {
+        let mut certs = self.user_certs.clone();
+        for root in &self.os_roots {
+            if !certs.iter().any(|c| c.raw == root.raw) {
+                certs.push(root.clone());
+            }
+        }
         self.trust = Arc::new(TrustStore { certs });
         for doc in &mut self.docs {
             doc.trust = self.trust.clone();

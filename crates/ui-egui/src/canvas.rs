@@ -1803,7 +1803,7 @@ fn page_overlays(ui: &mut egui::Ui, view: &mut DocView, frame: &mut PageFrame<'_
         // Big enough to read at a glance, on the signer's own text as Acrobat and Foxit do it.
         let side = (sr.width().min(sr.height()) * 0.9).clamp(24.0, 192.0);
         let mark = Rect::from_center_size(sr.center(), vec2(side, side));
-        area::paint_verdict_mark(&painter, mark.center(), side, badge.status);
+        area::paint_verdict_mark(painter, mark.center(), side, badge.status);
         // Overlapping widgets paint in order, so the topmost badge's verdict is the tip, with
         // any tool; a link's or a comment's tip wins over any badge.
         if pointer.is_some_and(|p| mark.expand(2.0).contains(p)) {

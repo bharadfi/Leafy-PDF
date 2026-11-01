@@ -248,9 +248,52 @@ fn describe(e: &CngError) -> String {
     format!("{meaning} (Windows error 0x{code:08X})")
 }
 
+/// The root certificates Windows itself trusts: Current User and Local Machine "Trusted Root
+/// Certification Authorities", without duplicates. A certificate that can't be read is skipped. It is an
+/// error only when neither store can be opened. Preferences ▸ Trust root certificates from Windows uses it.
+pub fn trusted_roots() -> Result<Vec<Certificate>, SignError> {
+    let mut roots: Vec<Certificate> = Vec::new();
+    let mut opened = 0;
+    let mut last_problem = None;
+    for kind in [CertStoreType::CurrentUser, CertStoreType::LocalMachine] {
+        let contexts = CertStore::open(kind, "ROOT").and_then(|store| store.find_all());
+        match contexts {
+            Ok(contexts) => {
+                opened += 1;
+                for context in contexts {
+                    if let Ok(certificate) = Certificate::parse(context.as_der())
+                        && !roots.iter().any(|known| known.raw == certificate.raw)
+                    {
+                        roots.push(certificate);
+                    }
+                }
+            }
+            Err(e) => last_problem = Some(describe(&e)),
+        }
+    }
+    if opened == 0 {
+        return Err(SignError::Crypto(format!(
+            "the Windows trusted root certificates couldn't be read: {}",
+            last_problem.unwrap_or_else(|| "unknown error".into())
+        )));
+    }
+    Ok(roots)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn windows_has_trusted_roots_and_each_one_is_a_certificate_authority_once() {
+        let roots = trusted_roots().expect("the Windows root store opens");
+        assert!(roots.len() >= 5, "a Windows PC trusts several roots, found {}", roots.len());
+        let mut raws: Vec<&[u8]> = roots.iter().map(|c| c.raw.as_slice()).collect();
+        raws.sort_unstable();
+        raws.dedup();
+        assert_eq!(raws.len(), roots.len(), "no duplicates");
+        assert!(roots.iter().any(|c| c.is_ca), "the roots include certificate authorities");
+    }
 
     #[test]
     fn errors_are_explained_with_their_code() {

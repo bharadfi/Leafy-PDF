@@ -88,6 +88,8 @@ pub const TABLE: &[(&str, Class)] = &[
     ("pdfcraft", Class::Exempt),
     ("cli", Class::Exempt),
     ("web", Class::Exempt),
+    // Explorer's thumbnail handler: a separately loaded COM library that uses no engine crate (it runs leafypdf.exe)
+    ("thumbs", Class::Exempt),
     ("xtask", Class::Exempt),
 ];
 

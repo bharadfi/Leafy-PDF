@@ -34,6 +34,7 @@ removed and why, so the removed code does not need to be kept around. Internal c
 | Linux (AppImage, deb, rpm, Flatpak), macOS (app bundle, DMG, notarization) and FreeBSD packaging | `packaging/linux/`, `packaging/macos/`, `packaging/freebsd/` (FreeBSD's script was built on the Linux folder) |
 | Tests that read those files | the desktop-entry test in `apps/pdfcraft`, the X11 desktop-file check in `winit_x11_dpi.rs`, the Info.plist checks in `xtask/src/gates.rs` and `macos_association.rs` |
 | The two macOS DMG background assets | `ATTRIBUTION.toml` / `ATTRIBUTION.md` |
+| The red PDF file icon and its licence file | `assets/app-icon/pdfcraft-document.{svg,ico}`, `LICENSE-document.txt` (also dropped from the installer's files, policy and `NOTICE`); PDF files now use the Leafy PDF tile |
 | Upstream's multi-platform release guide | `docs/releasing.md`, replaced by a short guide to the Windows installer build |
 
 ## Renamed to Leafy PDF
@@ -53,6 +54,7 @@ removed and why, so the removed code does not need to be kept around. Internal c
 
 - **Folder chooser in the installer** (`packaging/windows/installer-ui.wxs`): after the scope page, a
   "Where do you want to install?" page with a path box and Browse (drives, folders, Up, New folder).
+- **Explorer thumbnails and the file icon** (crates/thumbs, pps/pdfcraft/src/thumbnail.rs): a small thumbnail-handler library, installed beside the app and registered on the LeafyPdf.Document ProgID, asks leafypdf.exe --thumbnail for a picture of page 1. A file that needs a password gets the Leafy PDF tile instead of a page. PDF files use the Leafy PDF tile as their icon instead of the red PDF icon. The new crate is the one place in the workspace that uses `unsafe` (COM), so it does not inherit the workspace lint.
 - **Signatures:** the signer's baked validity layer is replaced by a tick, cross or question mark for
   the current verdict, on screen and in Print to PDF (`crates/sign/src/pdf/listing.rs`,
   `crates/engine/src/document.rs`); trusted certificates can be removed again from the signature

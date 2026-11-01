@@ -4178,7 +4178,9 @@ dependencies = [
  "fmv-macos-events",
  "log",
  "pdfcraft-engine",
+ "pdfcraft-render",
  "pdfcraft-ui-egui",
+ "png 0.18.1",
  "pollster 1.0.1",
  "raw-window-handle",
  "serde_json",
@@ -4607,6 +4609,14 @@ dependencies = [
 [[package]]
 name = "pdfcraft-testkit"
 version = "0.16.1"
+
+[[package]]
+name = "pdfcraft-thumbs"
+version = "0.16.1"
+dependencies = [
+ "windows",
+ "windows-core",
+]
 
 [[package]]
 name = "pdfcraft-ui-egui"

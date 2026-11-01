@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="#highlights">Highlights</a> ·
+  <a href="#what-this-build-adds">What this build adds</a> ·
   <a href="#signature-validation">Signature validation</a> ·
   <a href="#read-anything-beautifully">Read</a> ·
   <a href="#organize-pages-like-cards-on-a-table">Organize</a> ·
@@ -66,15 +67,25 @@ Digital signatures are checked on open and shown on the page: a green tick, an a
 </tr>
 </table>
 
-Also worth knowing:
+---
 
-- **Compact.** The installer is about 55 MB and installs without the command-line tools, so it takes little space on disk.
-- **Your folder, your choice.** The Windows installer asks who should use the app and then *where to install it*: type a path or click Browse and pick any drive and folder.
-- **One row at the top.** The window title bar and the document tabs share a single row, so the page gets more room.
-- **Fonts included.** The fonts for Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Devanagari and Georgian text are built into the program, so editing text in those scripts needs nothing extra.
-- **Offline OCR.** *Scan & OCR* uses models that ship with the installer. Nothing is uploaded.
-- **Its own settings.** Settings, recent files and your list of trusted certificates live in their own `LeafyPdf` folder and are not shared with any other PDF program.
-- **No promotions.** No community banners, no links out of the app unless you click a link in a document.
+## What this build adds
+
+Leafy PDF is a custom build of an open-source Rust PDF engine, shaped for everyday use on Windows. On top of a stock build of that kind of viewer, and of the custom forks made from it, it adds:
+
+| Area | What Leafy PDF does |
+|---|---|
+| **Signatures** | Verdict marks drawn *behind* the signer's text, on screen and in print: green tick, amber question mark, red cross. One-click **Add to trusted certificates** and **Remove from trusted certificates**. Certified documents read *Document certified by NAME <email>.* An optional, **off-by-default** setting also trusts the root certificates Windows trusts. The signed file is never touched. |
+| **Installer** | A signed Windows x64 installer that asks who should use the app and **where to install it** (any drive and folder). About 55.7 MB, with the fonts for Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Devanagari and Georgian and the offline OCR models built in. No command-line tools and no portable zip, so the install stays small. |
+| **Explorer** | A snapshot of page 1 as the thumbnail of each PDF, and the green Leafy PDF tile (never a page) for password-protected files. The PDF file icon is the same tile. |
+| **Reading aloud** | *Read this page aloud*, *Read to the end of the document aloud*, *Pause or resume* and *Stop*, using the voice Windows already has. No speech engine is shipped. |
+| **Scanning** | *Create ▸ PDF from a scanner* opens Windows' own scan window. *Scan another page* gathers several scans into one PDF. |
+| **Compare** | Compare only the pages you choose in each file, in the dialog and for scripts. The report and the comments follow the same pages. |
+| **Preferences** | How often unsaved changes are autosaved (1 to 15 minutes) and how many recent files are remembered. |
+| **Interface** | The window title bar and the document tabs share a single row. Its own logo and icons. |
+| **Quiet by design** | No account, no telemetry, no update check, no banners or promotional links, and no cloud or AI features. Its settings and trusted certificates live in their own `LeafyPdf` folder and are shared with no other program. |
+
+**Deliberately left out:** cloud services, an AI assistant, online signing and review services, and installers for other operating systems (the installer and testing are Windows x64 only).
 
 ---
 
@@ -91,6 +102,7 @@ Leafy PDF checks every digital signature when a document opens and shows the res
 - **Behind the text, never over it.** The mark is a soft round badge drawn in the signature's own background layer, so the signer's name, date and reason stay fully readable.
 - **Prints the same way.** The same mark is in the printed page and in *Print to PDF*.
 - **Trust a signer once, with a click.** Open the *Signatures* panel, expand a signature and choose **Add to trusted certificates**: its question mark turns into a green tick. **Remove from trusted certificates** takes the trust away again, and the tick goes back to a question mark. Trusted certificates are stored locally, nowhere else.
+- **Windows roots, if you want them.** *Preferences ▸ Trust root certificates from Windows when validating signatures* is off by default. When it is on, a signature whose certificate chains to one of the roots Windows trusts shows as valid without adding the certificate yourself. Those roots are kept apart from your own list and are never saved into it.
 - **Certified documents say so.** For a certified signature that verifies, the caption reads *Document certified by NAME <email>.* instead of "Signature Not Verified". The email is read from the signer's certificate.
 - **Your file is never touched.** The verdict is drawn into the copy you view and print. The signed bytes, and the file on disk, stay exactly as they were.
 - **Details when you want them.** The panel lists, for each signature, why it got its verdict: what was checked, who signed, with which algorithm, when, and whether the document changed afterwards. You can also view the signed version, show the certificate and export it.
@@ -108,6 +120,7 @@ Leafy PDF renders PDFs with care for the details that make a page feel right: ke
 - **Layouts for every task:** continuous, single page, two-up, view rotation, full screen and a distraction-free Read mode.
 - **Light and dark themes**, both designed to be easy on the eyes for long sessions.
 - **Find it, select it, copy it.** Search as you type and select text that comes out in the right reading order, for columns, right-to-left runs and CJK too.
+- **Listen to it.** View ▸ *Read this page aloud* reads a page with the Windows voice; you can pause, resume and stop.
 - **Navigate long documents.** Bookmarks, page thumbnails and the document's own page labels (i, ii, 1, 2…) keep you oriented. Right-click a tab to close it, reopen the last closed file or reveal it in Explorer.
 
 ## Organize pages like cards on a table
@@ -118,7 +131,7 @@ Open **Organize pages** to see every page at once:
 - **Change them:** rotate, delete, insert blank pages, insert pages from another file, and move them earlier or later.
 - **Undo anything:** each change is one step in a history you can walk backwards and forwards; undo still works after you save.
 
-**Saves you can trust:** *incremental* (the original bytes stay intact), *atomic* (written to a temporary copy, then swapped in) and *recoverable* (changes are autosaved every minute; if the app ever quits unexpectedly it offers to recover your work). Unsaved documents carry a dot on their tab, and closing asks before anything is lost. Encrypted documents stay encrypted on disk.
+**Saves you can trust:** *incremental* (the original bytes stay intact), *atomic* (written to a temporary copy, then swapped in) and *recoverable* (unsaved changes are autosaved, every minute unless you choose another interval; if the app ever quits unexpectedly it offers to recover your work). Unsaved documents carry a dot on their tab, and closing asks before anything is lost. Encrypted documents stay encrypted on disk.
 
 ## Combine and split without losing a thing
 
@@ -137,6 +150,8 @@ Documents restricted by their author show a clear notice, and Leafy PDF honours 
 - **Forms:** every field with its current value, field highlighting, and checkboxes, radio buttons, lists and signatures drawn the way their author designed them. Fill & Sign adds typed or drawn signatures, stamps and marks.
 - **Layers:** switch optional content on and off and the page re-renders instantly.
 - **Comments** appear as threaded conversations; **attachments** can be opened or saved.
+- **Scan & OCR:** recognise text in scans with the bundled offline models, or scan straight from a scanner.
+- **Compare files:** word-by-word text differences and visual differences, side by side, for whole files or chosen pages.
 - **More tools on the home screen:** Export, Create, Combine, Organize, Edit, Add comments, Scan & OCR, Protect, Redact, Compress, Prepare a form, Add a stamp and Use a certificate. Press Ctrl-K to search every tool and command.
 
 ---
@@ -151,53 +166,22 @@ Documents restricted by their author show a clear notice, and Leafy PDF honours 
 
 ## Built for agents, too
 
-Every engine feature is reachable without the GUI through one table of JSON-Schema-described tools: open, inspect, render pages to PNG, extract and find text, rotate, delete, move and insert pages, edit bookmarks and page labels, add and reply to comments, list and fill form fields, protect with passwords, set metadata, undo and redo, save, combine, extract and split.
+Every engine feature is reachable without the GUI through one table of JSON-Schema-described tools: open, inspect, render pages to PNG, extract and find text, rotate, delete, move and insert pages, edit bookmarks and page labels, add and reply to comments, list and fill form fields, protect with passwords, compare files (optionally only some pages), set metadata, undo and redo, save, combine, extract and split.
 
-The source builds a command-line tool, `pdfcraft-cli` (the crate names of the code base are unchanged). The Windows installer does not include it. Build it from source if you want it:
+The source also builds a command-line tool and an opt-in server that agents can use over standard input and output; the Windows installer does not include them. The MCP-style server is opt-in: nothing starts it on its own and it opens no network port, and a root folder confines every file an agent can read or write.
 
-```powershell
-cargo build --release -p pdfcraft-cli
-pdfcraft-cli tools                                    # every tool and its JSON Schema
-pdfcraft-cli info  form.pdf                           # structure as JSON
-pdfcraft-cli text  paper.pdf --page 3                 # reading-order text
-pdfcraft-cli combine report.pdf appendix.pdf --out combined.pdf
-pdfcraft-cli mcp --root C:\path\to\your\pdfs          # opt-in MCP server over stdin/stdout
-```
+The running app can be driven too: start it with `leafypdf.exe --control <file>` and an agent can see and operate the real interface (widget tree, clicks, typing, keys, commands, screenshots). This is off by default, listens only on loopback, and every connection must present the random token written to that file.
 
-The MCP server is opt-in: nothing starts it on its own and it opens no network port. `--root` confines every file the agent can read or write to one directory.
-
-### Driving the app itself
-
-Start the app with `leafypdf.exe --control <file>` and an agent can see and operate the real interface: the widget tree with labels and positions, clicks, typing, keys, commands, view options and screenshots. This is off by default. It listens only on loopback, and every connection must present the random token written to that file.
-
-```powershell
-pdfcraft-cli ui --control <file> inspect query="Signature panel"
-pdfcraft-cli ui --control <file> click label="Signature panel"
-pdfcraft-cli ui --control <file> screenshot --out window.png
-```
+The command lines, options and examples are in [docs/development.md](docs/development.md).
 
 ---
 
 ## How it's built
 
-Leafy PDF is a Cargo workspace of focused crates, layered so the core never depends on the UI:
-
-| Crate | What it does |
-|---|---|
-| `pdfcraft-filters` | Every PDF stream filter (Flate, LZW, ASCII85, RunLength, predictors), encode and decode |
-| `pdfcraft-crypt` | The standard security handler: RC4, AES-128/256, revisions 2–6, permissions |
-| `pdfcraft-cos` | The PDF object layer: tolerant parsing, repair, copy-on-write edits, incremental and full writing |
-| `pdfcraft-sign` | Digital signatures: certificate chains, verification, trust, signing, and the verdict layers drawn on the page |
-| `pdfcraft-organize` | Page operations, combine / extract / split, bookmarks, page labels, document information |
-| `pdfcraft-annot` | Comments: builders and appearance streams for notes, text markup, shapes, ink and text boxes |
-| `pdfcraft-forms` | Interactive forms: the field model, filling with regenerated appearances, Clear form |
-| `pdfcraft-render` | Rendering, inspection and text extraction with reading order |
-| `pdfcraft-engine` | The façade every frontend uses: sessions, edits, undo, saving, the tool catalogue |
-| `pdfcraft-automation` | Agent control: the headless tool table, `pdfcraft-cli run`, and the opt-in MCP server |
-| `pdfcraft-ui-egui` | The desktop interface |
+Leafy PDF is a Cargo workspace of focused crates, layered so the core never depends on the UI: stream filters and the standard security handler at the bottom, then the PDF object layer, signatures, page operations, comments, forms and rendering, then one engine that every front end uses (sessions, edits, undo, saving and the tool catalogue), and on top the desktop interface and the agent tools. A small separate library provides the Explorer thumbnails; it is the only place in the project that needs `unsafe` code, and it never parses a PDF itself.
 
 Leafy PDF's behaviour comes from the ISO 32000 specification and black-box observation. Every icon, font and image is openly licensed and listed in [ATTRIBUTION.md](ATTRIBUTION.md); `cargo xtask assets` checks that list.
-What this fork changes is recorded in [docs/leafy-pdf.md](docs/leafy-pdf.md).
+A full record of the changes in this build is in [docs/leafy-pdf.md](docs/leafy-pdf.md).
 
 ## Get started
 
@@ -206,9 +190,10 @@ Building the app needs Rust (MSVC toolchain). Building the installer also needs 
 ```powershell
 git clone https://github.com/bharadfi/Leafy-PDF
 cd Leafy-PDF
-cargo xtask models                                   # fetch the OCR models Scan & OCR needs
-cargo run --release -p pdfcraft -- some.pdf          # run the desktop app on a PDF
+cargo xtask models        # fetch the OCR models Scan & OCR needs
 ```
+
+How to run the app from source, the environment variables and the other development notes are in [docs/development.md](docs/development.md).
 
 The program text in Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Devanagari and Georgian relies on the [craft-fonts](https://github.com/storytold/craft-fonts) font set (SIL Open Font License 1.1), a build input. The installer build requires it and refuses to continue without it. Check out the commit pinned in the repository's packaging notes:
 
@@ -219,7 +204,7 @@ dotnet tool install --global wix --version 5.0.2
 powershell -File packaging\windows\package.ps1 -Arch x64
 ```
 
-The interface language is chosen in **Edit → Preferences…** (see [docs/localization.md](docs/localization.md)). Logs, environment variables and other development notes are in [docs/development.md](docs/development.md).
+The interface language is chosen in **Edit → Preferences…** (see [docs/localization.md](docs/localization.md)). The steps for building and publishing the installer are in [docs/releasing.md](docs/releasing.md).
 
 ## What's next
 
@@ -228,11 +213,12 @@ Leafy PDF is **alpha** software. Everyday reading, commenting, form filling, sig
 - reliable editing of existing text (especially CJK and right-to-left);
 - OCR beyond Latin script;
 - office-document import and export;
+- certificate-based password protection and tools for tagging documents for accessibility;
 - signature tokens and online long-term validation;
 - preflight and PDF/X, PDF/UA conformance;
 - full XFA forms.
 
-Not yet verified for this fork: printing a validated signature on a physical printer, and the installers for other operating systems (this fork's installer and testing are Windows x64 only).
+Not yet verified for this build: printing a validated signature on a physical printer, scanning from a real scanner, and installers for other operating systems (this build's installer and testing are Windows x64 only).
 
 The wider roadmap is in [ROADMAP.md](ROADMAP.md); the full assessment is in [docs/target-app-parity.md](docs/target-app-parity.md), the ranked gaps in [docs/gaps.md](docs/gaps.md), and the milestones in [docs/roadmap.md](docs/roadmap.md).
 
@@ -250,7 +236,7 @@ Get the installer from the [latest release](https://github.com/bharadfi/Leafy-PD
 
 - **Where it installs.** The installer asks who should use Leafy PDF (just you, or everyone on the computer) and then the folder: type a path or Browse to any drive.
 - **Signed with a self-made certificate.** The installer and `leafypdf.exe` are signed, but the certificate is not issued by a public authority, so Windows shows *Unknown publisher* (and SmartScreen may ask for confirmation) until you choose to trust it. You can compare the file's SHA-256, shown in the release notes, with `Get-FileHash <file> -Algorithm SHA256`.
-- **Shortcuts and menus.** It adds a Start Menu shortcut, an optional desktop shortcut, and optional "Edit with Leafy PDF" and "Create PDF with Leafy PDF…" entries in the right-click menu of PDF files and images in File Explorer (on Windows 11, under "Show more options"). It does not change which app opens PDFs by default.
+- **Shortcuts and menus.** It adds a Start Menu shortcut, an optional desktop shortcut, and optional "Edit with Leafy PDF" and "Create PDF with Leafy PDF…" entries in the right-click menu of PDF files and images in File Explorer (on Windows 11, under "Show more options"). It does not change which app opens PDFs by default. When Leafy PDF is the default, PDF files show page thumbnails (or the Leafy PDF tile if protected); Windows may need a moment, or a restart of File Explorer, to replace thumbnails it has already cached.
 - **Unattended install.** Set a property to `0` to leave an item out:
 
 ```powershell
@@ -270,6 +256,6 @@ An upgrade keeps what the installed version has: a shortcut or menu entry that i
 ## License and credits
 
 Leafy PDF is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-It is built on the open-source [PdfCraft](https://github.com/storytold/pdfcraft) 0.16.1 code base and keeps its copyright and attribution notices; required notices are in [NOTICE](NOTICE).
+It is built on open-source code and keeps its authors' copyright and attribution notices; the required notices are in [NOTICE](NOTICE) and in the two licence files.
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md). The Leafy PDF logo in `assets/brand/` is under the same licences ([assets/brand/LICENSE.txt](assets/brand/LICENSE.txt)). Release builds also embed the fonts of [craft-fonts](https://github.com/storytold/craft-fonts/blob/main/ATTRIBUTION.md) (SIL Open Font License 1.1).

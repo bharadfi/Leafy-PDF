@@ -36,6 +36,10 @@ pub struct Session {
     utc_offset: Option<fn() -> i64>,
     /// Certificates trusted for signing (Acrobat: Trusted Certificates).
     pub(crate) trust: Arc<TrustStore>,
+    /// The certificates the user chose to trust (what Preferences and the Signatures panel list and save).
+    pub(crate) user_certs: Vec<pdfcraft_sign::Certificate>,
+    /// The roots Windows trusts, while Preferences asks for them. Never saved; `trust` holds both lists.
+    pub(crate) os_roots: Vec<pdfcraft_sign::Certificate>,
     /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript, inverted (on by default).
     pub(crate) js_off: bool,
     /// Preferences ▸ Date format, when not the default (see [`dates`]).

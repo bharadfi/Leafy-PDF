@@ -4901,6 +4901,34 @@ fn every_validity_layer_is_redrawn_as_the_verdict() {
 }
 
 #[test]
+fn windows_roots_count_as_trusted_without_joining_the_users_own_list() {
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let id = sign::pkcs12::open(&p12, "test").unwrap();
+    let anchor = id.chain.first().cloned().unwrap_or_else(|| id.certificate.clone());
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
+    let signed = Arc::new(sign_prepared(&mut doc, &id, "D:20261002120000+01'00'"));
+    let mut s = Session::new().with_clock(|| 1_800_000_000);
+    let vid = s.open("roots.pdf", None, signed, None).unwrap();
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Unknown, "nobody is trusted yet");
+
+    // The roots Windows trusts make the signature valid ...
+    s.set_os_trusted_roots(vec![anchor.clone()]);
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Valid);
+    // ... and are kept apart from what the user chose: the user's list, which is saved, stays empty.
+    assert!(s.trusted_certificates().is_empty());
+    assert_eq!(s.os_trusted_roots().len(), 1);
+    // The user's own list works beside them, and a root the user also trusts is counted once.
+    s.set_trusted_certificates(vec![anchor.clone()]);
+    assert_eq!((s.trusted_certificates().len(), s.os_trusted_roots().len()), (1, 1));
+    assert_eq!(s.trust.certs.len(), 1);
+    // Turning the roots off while the user trusts the signer keeps it valid; removing both makes it unknown again.
+    s.set_os_trusted_roots(Vec::new());
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Valid);
+    s.set_trusted_certificates(Vec::new());
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Unknown);
+}
+
+#[test]
 fn mixed_signature_caption_details_survive_trust_exports_printing_and_save() {
     let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
     signature_layer_ops(&mut doc, 11, b"BT /F1 5 Tf 2 27 Td (Alice Signer) Tj 0 -3 Td (alice@example.org) Tj 0 -3 Td (Signature Not Verified) Tj ET");
@@ -5778,6 +5806,54 @@ fn comparing_two_versions_of_a_document() {
     let marks: Vec<_> = d.info.annotations.iter().filter(|a| a.author.as_deref() == Some("Compare")).collect();
     assert_eq!(marks.len(), 2);
     assert!(marks[0].contents.as_deref().unwrap().starts_with("Replaced: \"Monday.\""));
+}
+
+#[test]
+fn comparing_only_some_pages_leaves_the_rest_out() {
+    use compare::Scope;
+    let long = |first: &str| {
+        let mut text = format!("{first} opens the agreement.\n\n");
+        for i in 0..150 {
+            text.push_str(&format!("Clause {i} stays the same on every later page.\n\n"));
+        }
+        text
+    };
+    let mut s = Session::new().with_clock(|| 1_700_000_000);
+    let (v1, v2) = (s.create_from_text("t", &long("Alpha")).unwrap(), s.create_from_text("t", &long("Bravo")).unwrap());
+    let old = s.open("v1.pdf", None, v1, None).unwrap();
+    let new = s.open("v2.pdf", None, v2, None).unwrap();
+    let pages = s.get(new).unwrap().info.pages.len();
+    assert!(pages >= 3 && s.get(old).unwrap().info.pages.len() == pages, "the test needs several pages, got {pages}");
+
+    // Only the first word of page 1 differs.
+    let whole = s.compare(old, new).unwrap();
+    assert_eq!((whole.changes.len(), whole.changes[0].new.page), (1, 0));
+    assert_eq!(s.compare_in(old, new, &Scope::default()).unwrap(), whole, "no scope is the whole document");
+    // Page 1 alone shows it; the later pages alone do not.
+    let first = Scope { old: Some(0..1), new: Some(0..1) };
+    assert_eq!(s.compare_in(old, new, &first).unwrap().changes.len(), 1);
+    let later = Scope { old: Some(1..pages), new: Some(1..pages) };
+    assert!(s.compare_in(old, new, &later).unwrap().identical());
+    // A range past the end is cut to the document, and an empty one compares nothing.
+    assert!(s.compare_in(old, new, &Scope { old: Some(1..1000), new: Some(1..1000) }).unwrap().identical());
+    assert!(
+        s.compare_in(old, new, &Scope { old: Some(5..5), new: Some(0..pages) }).unwrap().changes.iter().all(|c| c.kind == compare::Kind::Inserted)
+    );
+
+    // Visually: the same pages.
+    assert!(!s.compare_visual_in(old, new, 72.0, &first).unwrap().is_empty());
+    assert!(s.compare_visual_in(old, new, 72.0, &later).unwrap().is_empty());
+    // A different range on each side matches page k with page k: new page 2 against old page 2 is the same text.
+    assert!(s.compare_visual_in(old, new, 72.0, &Scope { old: Some(1..3), new: Some(1..3) }).unwrap().is_empty());
+
+    // The report and the marked comments follow the same scope.
+    let report = s.compare_report_in(old, new, &first).unwrap();
+    let rid = s.open("report.pdf", None, report, None).unwrap();
+    let text = page_texts(&s, rid).join(" ");
+    assert!(text.contains("1 change") && text.contains("Bravo"), "{text}");
+    s.compare_report_in(old, new, &later).unwrap();
+    assert_eq!(s.mark_differences_in(old, new, &later).unwrap(), 0);
+    assert_eq!(s.mark_differences_in(old, new, &first).unwrap(), 1);
 }
 
 #[test]

@@ -4,15 +4,32 @@
 
 use egui::{Align, Color32, Layout};
 use pdfcraft_engine::DocId;
-use pdfcraft_engine::compare::{Comparison, Kind};
+use pdfcraft_engine::compare::{Comparison, Kind, Scope};
 
 use crate::theme::{self, Tokens};
 use crate::{PdfCraftApp, RightPanel, widgets};
+
+/// The pages the Compare Files dialog asks for, 1-based and inclusive; `None` is the whole file.
+#[derive(Clone, Default)]
+pub struct PagesDraft {
+    pub old: Option<(usize, usize)>,
+    pub new: Option<(usize, usize)>,
+}
+
+impl PagesDraft {
+    /// The same choice as the engine's page ranges (0-based, end excluded).
+    fn scope(&self) -> Scope {
+        let range = |pages: Option<(usize, usize)>| pages.map(|(from, to)| from.saturating_sub(1)..to);
+        Scope { old: range(self.old), new: range(self.new) }
+    }
+}
 
 /// The last comparison.
 pub struct CompareState {
     pub old: DocId,
     pub new: DocId,
+    /// The pages it covered, which the report and the comments cover too.
+    pub scope: Scope,
     pub result: Comparison,
     /// Regions that look different (page, user-space box), page n against page n.
     pub visual: Vec<(usize, [f64; 4])>,
@@ -59,6 +76,8 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         app.compare_old = others.first().map(|(id, _)| *id);
     }
     let new_name = app.session.get(new).map(|d| d.name.clone()).unwrap_or_default();
+    let old_pages = app.compare_old.and_then(|o| app.session.get(o)).map_or(1, |d| d.info.pages.len().max(1));
+    let new_pages = app.session.get(new).map_or(1, |d| d.info.pages.len().max(1));
     egui::Grid::new("compare-files").num_columns(2).spacing([12.0, 10.0]).show(ui, |ui| {
         ui.label(tl!("Old file:"));
         let shown =
@@ -69,8 +88,14 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
             }
         });
         ui.end_row();
+        ui.label(tl!("Old pages:"));
+        pages_choice(ui, &mut app.compare_pages.old, old_pages);
+        ui.end_row();
         ui.label(tl!("New file:"));
         ui.label(egui::RichText::new(new_name).strong());
+        ui.end_row();
+        ui.label(tl!("New pages:"));
+        pages_choice(ui, &mut app.compare_pages.new, new_pages);
         ui.end_row();
     });
     ui.add_space(4.0);
@@ -88,6 +113,24 @@ pub(crate) fn body(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens) -> (boo
         })
     });
     (go, cancel)
+}
+
+/// Whole file, or from page to page of `count`.
+fn pages_choice(ui: &mut egui::Ui, choice: &mut Option<(usize, usize)>, count: usize) {
+    ui.horizontal(|ui| {
+        let mut whole = choice.is_none();
+        if ui.add(widgets::checkbox(&mut whole, tl!("Whole file"))).changed() {
+            *choice = if whole { None } else { Some((1, count)) };
+        }
+        if let Some((from, to)) = choice {
+            *from = (*from).clamp(1, count);
+            *to = (*to).clamp(*from, count);
+            ui.add(egui::DragValue::new(from).range(1..=count));
+            ui.label(tl!("to"));
+            ui.add(egui::DragValue::new(to).range(*from..=count));
+            ui.label(crate::i18n::fmt(tl!("of {name}"), &[("name", &count.to_string())]));
+        }
+    });
 }
 
 /// The Compare panel.
@@ -191,15 +234,17 @@ impl PdfCraftApp {
     pub fn run_compare(&mut self) {
         let Some((i, new)) = self.active_ids() else { return };
         let Some(old) = self.compare_old else { return };
-        match self.session.compare(old, new) {
+        let scope = self.compare_pages.scope();
+        match self.session.compare_in(old, new, &scope) {
             Ok(result) => {
-                let visual = self.session.compare_visual(old, new, 72.0).unwrap_or_default();
+                let visual = self.session.compare_visual_in(old, new, 72.0, &scope).unwrap_or_default();
                 let n = result.changes.len();
                 // Side by side when the old version is open in a tab and the window has the room.
                 let side_by_side = self.views.iter().any(|v| v.id == old) && self.ctx.as_ref().is_none_or(|c| c.content_rect().width() >= 1000.0);
                 self.compare = Some(crate::compare_ui::CompareState {
                     old,
                     new,
+                    scope,
                     result,
                     visual,
                     selected: None,
@@ -226,6 +271,7 @@ impl PdfCraftApp {
     pub(crate) fn compare_action(&mut self, index: usize, a: PanelAction) {
         let Some(s) = self.compare.as_mut() else { return };
         let (old, new) = (s.old, s.new);
+        let scope = s.scope.clone();
         match a {
             PanelAction::Select(i) => {
                 s.selected = Some(i);
@@ -252,7 +298,7 @@ impl PdfCraftApp {
                 s.show_visual = visual;
                 self.shade_compare(index);
             }
-            PanelAction::Mark => match self.session.mark_differences(old, new) {
+            PanelAction::Mark => match self.session.mark_differences_in(old, new, &scope) {
                 Ok(n) => {
                     if let Some(info) = self.session.get(new).map(|d| d.info.clone()) {
                         self.views[index].document_changed(&info);
@@ -265,7 +311,7 @@ impl PdfCraftApp {
                 }
                 Err(e) => self.notify_error(e),
             },
-            PanelAction::Report => match self.session.compare_report(old, new) {
+            PanelAction::Report => match self.session.compare_report_in(old, new, &scope) {
                 Ok(bytes) => {
                     if let Err(e) = self.open_bytes("Compare Report.pdf", None, bytes.to_vec()) {
                         self.notify_error(e);

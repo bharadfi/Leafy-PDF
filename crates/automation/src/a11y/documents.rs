@@ -172,10 +172,28 @@ impl Automation {
         Ok((old, new))
     }
 
+    /// The pages the compare tools cover: `from` and `to` for the newer document, `other_from` and `other_to` for the older
+    /// one, 1-based and inclusive. Either end may be left out; with neither, the whole document.
+    fn compare_scope(a: &Args) -> Result<pdfcraft_engine::compare::Scope> {
+        let side = |from: &str, to: &str| -> Result<Option<std::ops::Range<usize>>> {
+            let (first, last) = (a.opt_int(from)?, a.opt_int(to)?);
+            if first.is_none() && last.is_none() {
+                return Ok(None);
+            }
+            let (first, last) = (first.unwrap_or(1), last.unwrap_or(i64::MAX));
+            if first < 1 || last < first {
+                return Err(ToolError::InvalidArgs(format!("{from} and {to}: pages start at 1, and {to} may not come before {from}")));
+            }
+            Ok(Some(usize::try_from(first - 1).unwrap_or(usize::MAX)..usize::try_from(last).unwrap_or(usize::MAX)))
+        };
+        Ok(pdfcraft_engine::compare::Scope { old: side("other_from", "other_to")?, new: side("from", "to")? })
+    }
+
     pub(crate) fn doc_compare(&self, a: &Args) -> Result<Value> {
         use pdfcraft_engine::compare::Kind;
         let (old, new) = self.compare_ids(a)?;
-        let c = self.session.compare(old, new).map_err(failed)?;
+        let scope = Self::compare_scope(a)?;
+        let c = self.session.compare_in(old, new, &scope).map_err(failed)?;
         let limit = a.opt_int("limit")?.unwrap_or(500).max(1) as usize;
         let r2 = |r: &[f64; 4]| r.map(|v| (v * 100.0).round() / 100.0);
         let side =
@@ -187,7 +205,12 @@ impl Automation {
             .map(|ch| json!({ "kind": ch.kind.label().to_lowercase(), "old": side(&ch.old), "new": side(&ch.new) }))
             .collect();
         let visual: Vec<Value> = if a.opt_bool("visual")?.unwrap_or(false) {
-            self.session.compare_visual(old, new, 72.0).map_err(failed)?.iter().map(|(p, r)| json!({ "page": p + 1, "rect": r2(r) })).collect()
+            self.session
+                .compare_visual_in(old, new, 72.0, &scope)
+                .map_err(failed)?
+                .iter()
+                .map(|(p, r)| json!({ "page": p + 1, "rect": r2(r) }))
+                .collect()
         } else {
             Vec::new()
         };
@@ -205,7 +228,7 @@ impl Automation {
 
     pub(crate) fn doc_compare_report(&self, a: &Args) -> Result<Value> {
         let (old, new) = self.compare_ids(a)?;
-        let bytes = self.session.compare_report(old, new).map_err(failed)?;
+        let bytes = self.session.compare_report_in(old, new, &Self::compare_scope(a)?).map_err(failed)?;
         let path = self.resolve(a.str("path")?, true)?;
         write_atomic(&path, &bytes)?;
         Ok(json!({ "path": path.to_string_lossy(), "bytes": bytes.len() }))
@@ -213,7 +236,7 @@ impl Automation {
 
     pub(crate) fn doc_compare_mark(&mut self, a: &Args) -> Result<Value> {
         let (old, new) = self.compare_ids(a)?;
-        let n = self.session.mark_differences(old, new).map_err(failed)?;
+        let n = self.session.mark_differences_in(old, new, &Self::compare_scope(a)?).map_err(failed)?;
         Ok(json!({ "comments": n }))
     }
 }

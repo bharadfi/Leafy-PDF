@@ -91,6 +91,9 @@ impl PdfCraftApp {
             "scroll_speed": self.scroll_speed,
             "animation_effects": self.animation_effects,
             "default_mode": self.default_mode,
+            "autosave_minutes": self.autosave_minutes,
+            "recent_limit": self.recent_limit,
+            "trust_windows_roots": self.trust_windows_roots,
             "default_layout": canvas::display_token(self.view_defaults.layout, self.view_defaults.continuous),
             "default_zoom": self.view_defaults.zoom_name(),
             "always_default_view": self.always_default_view,
@@ -217,6 +220,13 @@ impl PdfCraftApp {
         }
         if let Ok(mode) = serde_json::from_value::<Mode>(v["default_mode"].clone()) {
             self.default_mode = mode;
+        }
+        // Only values the dialog offers are taken: anything else (an edited file, an older build) keeps the default.
+        if let Some(minutes) = v["autosave_minutes"].as_u64().and_then(|m| u32::try_from(m).ok()).filter(|m| crate::AUTOSAVE_MINUTES.contains(m)) {
+            self.autosave_minutes = minutes;
+        }
+        if let Some(limit) = v["recent_limit"].as_u64().and_then(|n| usize::try_from(n).ok()).filter(|n| crate::RECENT_LIMITS.contains(n)) {
+            self.recent_limit = limit;
         }
         if let Some((layout, continuous)) = v["default_layout"].as_str().and_then(canvas::parse_display_token) {
             (self.view_defaults.layout, self.view_defaults.continuous) = (layout, continuous);
@@ -363,6 +373,10 @@ impl PdfCraftApp {
         if let Ok(pems) = serde_json::from_value::<Vec<String>>(v["trusted"].clone()) {
             let certs = pems.iter().filter_map(|p| pdfcraft_engine::sign::x509::load_certificates(p.as_bytes()).ok()).flatten().collect();
             self.apply_trusted_certificates(certs);
+        }
+        if v["trust_windows_roots"].as_bool() == Some(true) {
+            self.trust_windows_roots = true;
+            self.apply_windows_roots();
         }
     }
 }

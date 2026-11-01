@@ -71,6 +71,9 @@ impl PdfCraftApp {
             active: None,
             mode: Mode::AllTools,
             default_mode: Mode::AllTools,
+            autosave_minutes: 1,
+            recent_limit: 12,
+            trust_windows_roots: false,
             view_defaults: Default::default(),
             units: Default::default(),
             date_format_draft: None,
@@ -190,6 +193,7 @@ impl PdfCraftApp {
             action_files_override: None,
             pdfa: Default::default(),
             compare_old: None,
+            compare_pages: Default::default(),
             compare: None,
             js_console: Default::default(),
             doc_js: Default::default(),
@@ -259,6 +263,8 @@ impl PdfCraftApp {
             unmarked_page: Default::default(),
             export_draft: Default::default(),
             export_status: None,
+            speech: Default::default(),
+            scanner: Default::default(),
             signature: None,
             initials: None,
             signature_draft: Default::default(),
@@ -546,6 +552,8 @@ impl eframe::App for PdfCraftApp {
             }
         }
         self.poll_export();
+        self.poll_speech();
+        self.poll_scanner();
         self.auto_ocr_scanned_page();
         self.poll_ocr();
         self.poll_optimize();

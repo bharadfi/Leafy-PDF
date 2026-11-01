@@ -58,6 +58,11 @@ pub use canvas::{DocView, RasterMemory};
 pub use editing::{CloseRequest, SaveTarget};
 pub use files::{ExtractDraft, FilePurpose, FileRequest, RotateDraft, SplitDraft, SplitMode, SplitPlan};
 pub use recovery::{AUTOSAVE_SECS, RecoveryMeta, RecoveryStore};
+
+/// The autosave intervals Preferences offers, in minutes.
+pub const AUTOSAVE_MINUTES: [u32; 5] = [1, 2, 5, 10, 15];
+/// How many recent files Preferences lets the list hold.
+pub const RECENT_LIMITS: [usize; 4] = [5, 12, 20, 30];
 use theme::{ThemeKind, ThemePreference};
 
 mod app;
@@ -242,6 +247,14 @@ pub struct PdfCraftApp {
     pub mode: Mode,
     /// Workspace used for newly opened PDFs; independent of PDF Initial View metadata.
     pub default_mode: Mode,
+    /// How often unsaved changes are written to the recovery folder, in minutes (Preferences ▸ Documents
+    /// and view). One of [`AUTOSAVE_MINUTES`]; a crash loses at most this much work.
+    pub autosave_minutes: u32,
+    /// How many recently opened files are remembered (Preferences ▸ Documents and view): one of [`RECENT_LIMITS`].
+    pub recent_limit: usize,
+    /// Preferences ▸ Trust root certificates from Windows: count the roots Windows trusts as trusted when
+    /// validating signatures (off by default, as in Acrobat).
+    pub trust_windows_roots: bool,
     /// Page display and zoom for newly opened PDFs that don't ask for their own (Preferences ▸
     /// Documents and view). Continuous scrolling at fit width by default, which never snaps
     /// between pages.
@@ -464,6 +477,8 @@ pub struct PdfCraftApp {
     pub pdfa: standards_ui::PdfaState,
     /// Compare files: the chosen older document and the last result.
     pub compare_old: Option<DocId>,
+    /// The pages of each file the Compare Files dialog asks for.
+    pub compare_pages: compare_ui::PagesDraft,
     pub compare: Option<compare_ui::CompareState>,
     /// The JavaScript console and the Document JavaScripts draft.
     pub js_console: js_ui::JsConsole,
@@ -589,6 +604,10 @@ pub struct PdfCraftApp {
     pub export_draft: export_ui::ExportDraft,
     /// A running export's progress.
     export_status: Option<export_ui::ExportStatus>,
+    /// What is being read aloud (View ▸ Read this page aloud).
+    speech: platform::speech::Voice,
+    /// The scan window File ▸ Create ▸ PDF from a scanner opened, while it is open.
+    scanner: platform::scanner::Scanner,
     /// The saved Fill & Sign signature and initials (drawn or typed).
     pub signature: Option<fill_sign::SavedSig>,
     pub initials: Option<fill_sign::SavedSig>,

@@ -319,23 +319,24 @@ impl PdfCraftApp {
         if self.recovery.is_none() {
             return;
         }
+        let interval = AUTOSAVE_SECS * f64::from(self.autosave_minutes.max(1));
         // The first tick starts the interval, as the old zero clock did: it does not snapshot
         // immediately just because no deadline had been recorded yet.
         let Some(last) = self.last_autosave else {
             self.last_autosave = Some(now);
             if self.session.has_pending_autosave() {
-                ctx.request_repaint_after(std::time::Duration::from_secs_f64(AUTOSAVE_SECS));
+                ctx.request_repaint_after(std::time::Duration::from_secs_f64(interval));
             }
             return;
         };
-        if now.duration_since(last).as_secs_f64() >= AUTOSAVE_SECS {
+        if now.duration_since(last).as_secs_f64() >= interval {
             self.last_autosave = Some(now);
             self.autosave_now();
         }
         // An idle native window has no input-driven frames. Wake it at the existing
         // autosave deadline, without keeping clean or already-snapshotted documents awake.
         if self.session.has_pending_autosave() {
-            let next = self.last_autosave.unwrap_or(now) + std::time::Duration::from_secs_f64(AUTOSAVE_SECS);
+            let next = self.last_autosave.unwrap_or(now) + std::time::Duration::from_secs_f64(interval);
             ctx.request_repaint_after(next.saturating_duration_since(now));
         }
     }
