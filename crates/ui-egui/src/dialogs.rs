@@ -86,7 +86,6 @@ fn dialogs(app: &mut PdfCraftApp, ctx: &egui::Context) {
     link_prompt(app, ctx);
     remote_link_prompt(app, ctx);
     full_screen_prompt(app, ctx);
-    crate::updates::dialog(app, ctx);
     if app.dialog != Some(Dialog::WordCount) {
         app.word_count_draft.cancel();
     }
@@ -442,7 +441,7 @@ fn dialog_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, dialog: Dialog, req: &m
             }
         }
         Dialog::About => {
-            if !dialog_about(ui, req) {
+            if !dialog_about(ui) {
                 return false;
             }
         }
@@ -1196,6 +1195,7 @@ fn dialog_certificate_viewer(ui: &mut egui::Ui, app: &mut PdfCraftApp, req: &mut
     req.close = done;
     match action {
         Some(crate::sign_ui::CertAction::Trust(c)) => app.trust_certificate(*c),
+        Some(crate::sign_ui::CertAction::Untrust(c)) => app.untrust_certificate(&c),
         Some(crate::sign_ui::CertAction::Export(c)) => {
             app.export_certificate(&c);
         }
@@ -1426,7 +1426,7 @@ fn dialog_recovery(ui: &mut egui::Ui, app: &mut PdfCraftApp) -> bool {
         ui.label(egui::RichText::new(tl!("Recover unsaved documents?")).font(theme::semibold(18.0)));
     });
     ui.add_space(6.0);
-    ui.label(tl!("PdfCraft didn't shut down normally. These documents had changes that were autosaved:"));
+    ui.label(tl!("Leafy PDF didn't shut down normally. These documents had changes that were autosaved:"));
     ui.add_space(8.0);
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     egui::Grid::new("recoverable").num_columns(2).spacing([18.0, 6.0]).show(ui, |ui| {
@@ -1504,7 +1504,7 @@ fn dialog_shortcuts(ui: &mut egui::Ui) -> bool {
 }
 
 /// `Dialog::About` content. Returns `false` when it has its own buttons and no footer is wanted.
-fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
+fn dialog_about(ui: &mut egui::Ui) -> bool {
     let t = Tokens::get(ui.ctx());
     // Tabs About · Contributors · Models.
     let tab_id = egui::Id::unique("about_tab");
@@ -1524,9 +1524,9 @@ fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
         2 => crate::credits::models_ui(ui),
         _ => {
             ui.horizontal(|ui| {
-                widgets::artcraft_mark(ui, 40.0);
+                widgets::leafy_logo(ui, 44.0);
                 ui.vertical(|ui| {
-                    ui.label(egui::RichText::new("PdfCraft").font(theme::semibold(20.0)));
+                    ui.label(egui::RichText::new("Leafy PDF").font(theme::semibold(20.0)));
                     ui.label(crate::i18n::fmt(tl!("Version {v}"), &[("v", &pdfcraft_engine::build_info::version())]));
                 });
             });
@@ -1539,15 +1539,6 @@ fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
                 .color(t.text_muted)
                 .small(),
             );
-            ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(tl!("Part of")).color(t.text_muted));
-                widgets::artcraft_logo(ui, 16.0);
-            });
-            ui.add_space(6.0);
-            if let Some(cmd) = widgets::community_links(ui) {
-                req.link_command = Some(cmd);
-            }
         }
     }
     true

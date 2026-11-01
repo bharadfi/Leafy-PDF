@@ -373,7 +373,7 @@ impl Session {
         doc.info.file_size = bytes.len();
         doc.form = form;
         let signatures = if doc.signatures.is_empty() { Vec::new() } else { signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache) };
-        doc.display = display_bytes(Some(editor), &bytes);
+        doc.display = display_bytes(Some(editor), &bytes, &signatures);
         doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), display_config(&doc.config));
         doc.bytes = bytes;
@@ -430,7 +430,7 @@ impl Session {
         }
         doc.info.file_size = bytes.len();
         let signatures = if doc.signatures.is_empty() { Vec::new() } else { signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache) };
-        doc.display = display_bytes(Some(editor), &bytes);
+        doc.display = display_bytes(Some(editor), &bytes, &signatures);
         doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), display_config(&doc.config));
         doc.bytes = bytes;
@@ -514,7 +514,7 @@ impl Session {
             doc.links = OnceLock::new();
         }
         let signatures = signatures_of(&editor.cos, &bytes, &doc.trust, &doc.sig_cache);
-        doc.display = display_bytes(Some(editor), &bytes);
+        doc.display = display_bytes(Some(editor), &bytes, &signatures);
         doc.signatures = Arc::new(signatures);
         doc.renderer = RenderPool::new(doc.display.clone(), render_threads(), display_config(&doc.config));
         doc.bytes = bytes;

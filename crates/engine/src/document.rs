@@ -644,13 +644,21 @@ pub(crate) fn is_placeholder_title(title: &str) -> bool {
 }
 
 /// The working file plus appearances for comments that have none, and for form fields the file
-/// leaves to the viewer (#3470). Signature artwork is preserved; validation badges belong to the
-/// viewer and never enter these bytes, which image/text exports and Print as Image also consume.
-pub(crate) fn display_bytes(editor: Option<&mut Editor>, bytes: &Arc<Vec<u8>>) -> Arc<Vec<u8>> {
+/// leaves to the viewer (#3470). Signature artwork is preserved, except a signer's baked
+/// validity placeholder (a "?"), which shows the verdict `signatures` give, as Acrobat draws it;
+/// the overlay badge for a signature with no such layer belongs to the viewer and never enters
+/// these bytes, which image/text exports and Print as Image also consume.
+pub(crate) fn display_bytes(editor: Option<&mut Editor>, bytes: &Arc<Vec<u8>>, signatures: &[SignatureInfo]) -> Arc<Vec<u8>> {
     let Some(e) = editor else { return bytes.clone() };
     let comments = pdfcraft_annot::with_missing_appearances_cached(&e.cos, &mut e.appearances);
     let fields = pdfcraft_forms::with_field_appearances_cached(comments.as_ref().unwrap_or(&e.cos), &mut e.field_appearances);
-    let Some(display) = fields.or(comments) else {
+    // A signature's validity layer (Adobe's `% DSUnknown` placeholder, a "?") shows the verdict
+    // reached here, as Acrobat redraws it: the artwork stays where the signer put it, under the
+    // signer's text. The working file and every signed byte stay as they are.
+    let verdict = |field: &str| signatures.iter().find(|s| s.field == field).map(|s| s.status);
+    let caption = |field: &str| signatures.iter().find(|s| s.field == field).and_then(|s| s.verified_caption());
+    let marks = pdfcraft_sign::pdf::with_validity_marks(fields.as_ref().or(comments.as_ref()).unwrap_or(&e.cos), &verdict, &caption);
+    let Some(display) = marks.or(fields).or(comments) else {
         return bytes.clone();
     };
     match write_incremental(&display, &SaveOptions::default()) {

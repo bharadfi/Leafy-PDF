@@ -50,7 +50,9 @@ fn compositor_leaves_frame_to_app() -> bool {
 
 #[cfg(not(target_os = "linux"))]
 fn compositor_leaves_frame_to_app() -> bool {
-    false
+    // Windows: the tab strip is the title bar, as in Acrobat, with the caption buttons at its right
+    // edge. macOS has its own integrated title bar and never gets here.
+    cfg!(target_os = "windows")
 }
 
 #[cfg(target_os = "linux")]

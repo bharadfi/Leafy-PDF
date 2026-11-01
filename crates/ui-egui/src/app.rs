@@ -42,7 +42,7 @@ impl PdfCraftApp {
         let mark = if dirty { " •" } else { "" };
         let titled = |name: Option<String>| {
             name.or_else(|| self.combine_showing().then(|| tl!("Combine files").to_owned()))
-                .map_or_else(|| "PdfCraft".to_owned(), |name| format!("{name}{mark} — PdfCraft"))
+                .map_or_else(|| "Leafy PDF".to_owned(), |name| format!("{name}{mark} — Leafy PDF"))
         };
         let title = titled(self.active.and_then(|i| crate::canvas::tab_label(self, i)));
         // The web page's title is what an embedding host reads to tell which file opened, so it
@@ -106,7 +106,6 @@ impl PdfCraftApp {
             fill_text_size: fill_sign::TEXT_SIZE,
             fill_text_color: [0.0; 3],
             dialog: None,
-            updates: updates::Updates::default(),
             printer_source: None,
             options_source: None,
             print_tasks: print_ui::PrintTasks::default(),
@@ -250,7 +249,6 @@ impl PdfCraftApp {
             control: None,
             bookmark_rename: None,
             last_opened_url: None,
-            community_card_closed: false,
             pending_link: None,
             pending_full_screen: None,
             pending_remote_link: None,
@@ -321,7 +319,6 @@ impl PdfCraftApp {
             || self.unlock_prompt.is_some()
             || self.pending_link.is_some()
             || self.pending_remote_link.is_some()
-            || self.updates.open
     }
 
     /// Show `msg` in the toast now, in place of whatever it showed. Script messages still waiting
@@ -519,7 +516,6 @@ impl eframe::App for PdfCraftApp {
                 report(dirty);
             }
         }
-        self.poll_updates();
         self.poll_print();
         // Shortcuts deferred last frame: the text field has taken that frame's typing since.
         let deferred = std::mem::take(&mut self.deferred_commands);

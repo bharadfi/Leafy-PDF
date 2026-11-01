@@ -143,8 +143,7 @@
 	Fill & Sign	Fyll ut og signer
 	Accessibility	Tilgjengelighet
 	Help…	Hjelp…
-	Check for updates…	Se etter oppdateringer…
-	About PdfCraft	Om PdfCraft
+	About Leafy PDF	Om Leafy PDF
 	Automatically	Automatisk
 	Never	Aldri
 	Always	Alltid
@@ -478,7 +477,6 @@
 	Documents and view	Dokumenter og visning
 	Done	Ferdig
 	Done adding text	Ferdig med å legge til tekst
-	Download	Last ned
 	Downsample to	Nedsample til
 	Drag the selection to move it. Esc clears the selection.	Dra utvalget for å flytte det. Esc fjerner utvalget.
 	Drag to reorder	Dra for å endre rekkefølge
@@ -555,7 +553,7 @@
 	Files are combined from top to bottom. Leave Pages empty to take every page.	Filene slås sammen fra topp til bunn. La Sider stå tomt for å ta med alle sidene.
 	Files are combined in the order shown. Drag them to change it.	Filene slås sammen i rekkefølgen som vises. Dra dem for å endre den.
 	Files for {name}	Filer for {name}
-	Files you open in PdfCraft appear here. Drop a PDF anywhere to open it.	Filer du åpner i PdfCraft vises her. Slipp en PDF hvor som helst for å åpne den.
+	Files you open in Leafy PDF appear here. Drop a PDF anywhere to open it.	Filer du åpner i Leafy PDF vises her. Slipp en PDF hvor som helst for å åpne den.
 	Fill & Sign dates	Fyll ut og signer-datoer
 	Fill & Sign signature	Fyll ut og signer-signatur
 	Fill Color:	Fyllfarge:
@@ -609,7 +607,6 @@
 	From {file}	Fra {file}
 	From:	Fra:
 	Front side only	Bare forsiden
-	Get help, share feedback and follow development on Discord.	Få hjelp, gi tilbakemelding og følg utviklingen på Discord.
 	Go to a page view	Gå til en sidevisning
 	Go to page {p}	Gå til side {p}
 	Go to the page	Gå til siden
@@ -661,8 +658,6 @@
 	JavaScript Console	JavaScript-konsoll
 	JavaScript is turned off (Preferences ▸ JavaScript).	JavaScript er slått av (Innstillinger > JavaScript).
 	JavaScript, e.g. getField("total").value	JavaScript, f.eks. getField("total").value
-	Join our Discord	Bli med på Discord-serveren vår
-	Join the ArtCraft community	Bli med i ArtCraft-fellesskapet
 	Justify	Blokkjuster
 	Keep source fonts	Behold kildeskrifter
 	Keep tool selected	Behold verktøyet valgt
@@ -853,7 +848,6 @@
 	Pages:	Sider:
 	Pages: {k} of {n}	Sider: {k} av {n}
 	Paper:	Papir:
-	Part of	Del av
 	Password	Passord
 	Password required	Passord kreves
 	Password security	Passordsikkerhet
@@ -863,8 +857,8 @@
 	Pattern	Mønster
 	Patterns	Mønstre
 	Patterns (graphics objects)	Mønstre (grafikkobjekter)
-	PdfCraft didn't shut down normally. These documents had changes that were autosaved:	PdfCraft ble ikke avsluttet normalt. Disse dokumentene hadde endringer som ble autolagret:
-	PdfCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider.	PdfCraft fungerer uten nett. Ingen telemetri, ingen konto og ingen skybehandling med mindre du legger til en leverandør.
+	Leafy PDF didn't shut down normally. These documents had changes that were autosaved:	Leafy PDF ble ikke avsluttet normalt. Disse dokumentene hadde endringer som ble autolagret:
+	Leafy PDF works offline. No telemetry, no account, and no cloud processing unless you add a provider.	Leafy PDF fungerer uten nett. Ingen telemetri, ingen konto og ingen skybehandling med mindre du legger til en leverandør.
 	PdfCraft {v} is available.	PdfCraft {v} er tilgjengelig.
 	Percentage	Prosent
 	Permissions password	Tillatelsespassord
@@ -941,7 +935,7 @@
 	Remove {n} files	Fjern {n} filer
 	Remove {n} pages	Fjern {n} sider
 	Reopen Closed Tab	Åpne lukket fane på nytt
-	Reopen the files that were open when PdfCraft last closed	Åpne filene som var åpne da PdfCraft sist ble lukket
+	Reopen the files that were open when Leafy PDF last closed	Åpne filene som var åpne da Leafy PDF sist ble lukket
 	Repair log	Reparasjonslogg
 	Repeat overlay text	Gjenta overleggstekst
 	Replace Image…	Erstatt bilde…
@@ -1136,7 +1130,7 @@
 	Text alignment:	Tekstjustering:
 	Text in images isn't found; recognise text (OCR) first.	Tekst i bilder blir ikke funnet; gjenkjenn tekst (OCR) først.
 	Text is compared word by word; the differences are shown on the new file.	Teksten sammenlignes ord for ord; forskjellene vises på den nye filen.
-	Text recognition isn't installed: its model files are missing. Reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them.	Tekstgjenkjenning er ikke installert: modellfilene mangler. Installer PdfCraft på nytt, eller sett PDFCRAFT_MODELS til mappen som inneholder dem.
+	Text recognition isn't installed: its model files are missing. Reinstall Leafy PDF, or set PDFCRAFT_MODELS to the folder that holds them.	Tekstgjenkjenning er ikke installert: modellfilene mangler. Installer Leafy PDF på nytt, eller sett PDFCRAFT_MODELS til mappen som inneholder dem.
 	Text to find	Tekst å finne
 	Text to insert	Tekst å sette inn
 	Text used as a clipping path cannot be moved with this selection.	Tekst brukt som klippebane kan ikke flyttes med dette utvalget.
@@ -1151,9 +1145,9 @@
 	The document's security settings don't allow copying text and images	Dokumentets sikkerhetsinnstillinger tillater ikke kopiering av tekst og bilder
 	The document's security settings don't allow this change	Dokumentets sikkerhetsinnstillinger tillater ikke denne endringen
 	The existing action will be preserved.	Den eksisterende handlingen beholdes.
-	The fonts PdfCraft writes with can't draw “{c}” ({code}), so it shows as ? in every PDF viewer. The text is saved.	Skriftene PdfCraft skriver med kan ikke tegne «{c}» ({code}), så det vises som ? i alle PDF-visere. Teksten blir lagret.
-	The key is in the Windows certificate store, which may ask to allow PdfCraft to use it.	Nøkkelen ligger i sertifikatlageret i Windows, som kan be om å tillate at PdfCraft bruker den.
-	The key is in the macOS Keychain, which may ask to allow PdfCraft to use it.	Nøkkelen ligger i nøkkelringen i macOS, som kan be om å tillate at PdfCraft bruker den.
+	The fonts Leafy PDF writes with can't draw “{c}” ({code}), so it shows as ? in every PDF viewer. The text is saved.	Skriftene Leafy PDF skriver med kan ikke tegne «{c}» ({code}), så det vises som ? i alle PDF-visere. Teksten blir lagret.
+	The key is in the Windows certificate store, which may ask to allow Leafy PDF to use it.	Nøkkelen ligger i sertifikatlageret i Windows, som kan be om å tillate at Leafy PDF bruker den.
+	The key is in the macOS Keychain, which may ask to allow Leafy PDF to use it.	Nøkkelen ligger i nøkkelringen i macOS, som kan be om å tillate at Leafy PDF bruker den.
 	The newest {n} of {total} PDFs	De nyeste {n} av {total} PDF-er
 	The password is only used to read the file; it isn't saved.	Passordet brukes bare til å lese filen; det lagres ikke.
 	The printer driver's own settings for this print: paper tray, paper type, finishing and more.	Skriverdriverens egne innstillinger for denne utskriften: papirskuff, papirtype, etterbehandling og mer.
@@ -1194,7 +1188,7 @@
 	This file was damaged and has been repaired. Saving keeps the repaired version.	Denne filen var skadet og er reparert. Lagring beholder den reparerte versjonen.
 	This folder isn't available right now. It may have moved, or its drive or cloud sync is offline.	Denne mappen er ikke tilgjengelig akkurat nå. Den kan ha blitt flyttet, eller stasjonen eller skysynkroniseringen er frakoblet.
 	This form's scripts are turned off because one ran too long. Reopen the document to run them again.	Skriptene i dette skjemaet er slått av fordi ett kjørte for lenge. Åpne dokumentet på nytt for å kjøre dem igjen.
-	This is a dynamic XFA form, which PdfCraft can't display yet. What you see is the file's placeholder page.	Dette er et dynamisk XFA-skjema, som PdfCraft ikke kan vise ennå. Det du ser er filens plassholderside.
+	This is a dynamic XFA form, which Leafy PDF can't display yet. What you see is the file's placeholder page.	Dette er et dynamisk XFA-skjema, som Leafy PDF ikke kan vise ennå. Det du ser er filens plassholderside.
 	This measurement needs at least {n} points.	Denne målingen trenger minst {n} punkter.
 	This page contains objects that cannot be selected together.	Denne siden inneholder objekter som ikke kan velges sammen.
 	This page couldn't be displayed.\n{e}	Denne siden kunne ikke vises.\n{e}
@@ -1274,7 +1268,7 @@
 	Visible Rectangle	Synlig rektangel
 	Visual	Visuell
 	Warnings	Advarsler
-	Welcome to PdfCraft	Velkommen til PdfCraft
+	Welcome to Leafy PDF	Velkommen til Leafy PDF
 	What word or phrase would you like to search for?	Hvilket ord eller hvilken frase vil du søke etter?
 	Whole words only	Bare hele ord
 	Width:	Bredde:
@@ -1350,7 +1344,6 @@
 	Archive documents	Arkiver dokumenter
 	Area	Areal
 	Arrow	Pil
-	ArtCraft website	ArtCraft-nettsted
 	Ask about this document	Spør om dette dokumentet
 	Attach a file	Legg ved en fil
 	Attach file	Legg ved fil
@@ -1489,7 +1482,6 @@
 	Insert text	Sett inn tekst
 	JavaScript	JavaScript
 	JavaScript console…	JavaScript-konsoll…
-	Join the ArtCraft Discord	Bli med i ArtCraft-Discorden
 	Light gray	Lys grå
 	Line	Linje
 	Link	Lenke
@@ -1520,8 +1512,6 @@
 	Page options	Sidealternativer
 	Page transitions	Sideoverganger
 	Paste pages	Lim inn sider
-	PdfCraft on GitHub	PdfCraft på GitHub
-	PdfCraft web page	PdfCraft-nettside
 	Perimeter	Omkrets
 	Pin folder to Home…	Fest mappe til Hjem…
 	PostScript / EPS	PostScript / EPS
@@ -2184,7 +2174,7 @@
 	Passed	Bestått
 	Password protection will be applied when you save	Passordbeskyttelse tas i bruk når du lagrer
 	Path	Bane
-	PdfCraft is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.	PdfCraft tegner uten grafikkprosessor, så det kan gå tregt. Det kan hjelpe å oppdatere grafikkdriveren.
+	Leafy PDF is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.	Leafy PDF tegner uten grafikkprosessor, så det kan gå tregt. Det kan hjelpe å oppdatere grafikkdriveren.
 	People may need more time to respond. Check that nothing has a time limit.	Noen kan trenge mer tid på å svare. Kontroller at ingenting har en tidsgrense.
 	Phone Number	Telefonnummer
 	Phone Numbers	Telefonnumre
@@ -2340,7 +2330,7 @@
 	The document's security settings don't allow filling in form fields	Dokumentets sikkerhetsinnstillinger tillater ikke utfylling av skjemafelt
 	The field properties could not be changed.	Feltegenskapene kunne ikke endres.
 	The field properties dialog is no longer open.	Dialogen for feltegenskaper er ikke lenger åpen.
-	The form asks to be submitted to {u}; PdfCraft doesn't send form data. Save the document to keep your entries.	Skjemaet ber om å bli sendt til {u}; PdfCraft sender ikke skjemadata. Lagre dokumentet for å beholde det du har fylt inn.
+	The form asks to be submitted to {u}; Leafy PDF doesn't send form data. Save the document to keep your entries.	Skjemaet ber om å bli sendt til {u}; Leafy PDF sender ikke skjemadata. Lagre dokumentet for å beholde det du har fylt inn.
 	The form asks viewers to make appearances (NeedAppearances)	Skjemaet ber visningsprogrammet lage utseender (NeedAppearances)
 	The linked PDF opened, but its named destination was not applied.	Den lenkede PDF-en ble åpnet, men det navngitte målet ble ikke brukt.
 	The linked PDF opened, but its page destination was out of range.	Den lenkede PDF-en ble åpnet, men sidemålet var utenfor området.
@@ -2427,17 +2417,17 @@
 	{label} failed: {e}	{label} mislyktes: {e}
 	{name} has no action	{name} har ingen handling
 	{name} is too large for a word list (at most 1 MB).	{name} er for stor for en ordliste (høyst 1 MB).
-	{name} submits the form to {url}; PdfCraft doesn't send form data. Save the document to keep your entries.	{name} sender skjemaet til {url}; PdfCraft sender ikke skjemadata. Lagre dokumentet for å beholde det du har fylt inn.
+	{name} submits the form to {url}; Leafy PDF doesn't send form data. Save the document to keep your entries.	{name} sender skjemaet til {url}; Leafy PDF sender ikke skjemadata. Lagre dokumentet for å beholde det du har fylt inn.
 	{name}: choosing images arrives on the web with file pickers for images	{name}: bildevalg kommer på nett med filvelgere for bilder
 	{name}: the {other} action isn't supported yet	{name}: handlingen {other} støttes ikke ennå
-	{who} in this document tried to open an address PdfCraft won't open: {e}.	{who} i dette dokumentet prøvde å åpne en adresse PdfCraft ikke åpner: {e}.
-	{who} in this document tried to open an address PdfCraft won't open: {e}. Only web (http, https) and email (mailto) links open from documents.	{who} i dette dokumentet prøvde å åpne en adresse PdfCraft ikke åpner: {e}. Bare nettlenker (http, https) og e-postlenker (mailto) åpnes fra dokumenter.
+	{who} in this document tried to open an address Leafy PDF won't open: {e}.	{who} i dette dokumentet prøvde å åpne en adresse Leafy PDF ikke åpner: {e}.
+	{who} in this document tried to open an address Leafy PDF won't open: {e}. Only web (http, https) and email (mailto) links open from documents.	{who} i dette dokumentet prøvde å åpne en adresse Leafy PDF ikke åpner: {e}. Bare nettlenker (http, https) og e-postlenker (mailto) åpnes fra dokumenter.
 	View more	Vis mer
 	View less	Vis mindre
 	Only continue if you trust this document. An address can carry information from the document, such as what you typed into its form.	Fortsett bare hvis du stoler på dette dokumentet. En adresse kan inneholde informasjon fra dokumentet, for eksempel det du skrev inn i skjemaet.
 	Print single-sided. Keep the sheets in order, cut at the marks, then stack the piles left to right, top to bottom.	Skriv ut ensidig. Hold arkene i rekkefølge, klipp langs merkene, og stable bunkene fra venstre til høyre, ovenfra og ned.
-	Sign a sheet of white paper and take a photo of it in bright, even light (use the flash). Choose the photo or drop it here: PdfCraft finds the signature and removes the paper.	Signer på et hvitt ark og ta et bilde av det i sterkt, jevnt lys (bruk blitsen). Velg bildet eller slipp det her: PdfCraft finner signaturen og fjerner papiret.
-	This field's font can't draw “{c}” ({code}), so PdfCraft shows ? in its place. The value is saved, and other PDF viewers redraw the field from it.	Skriften i dette feltet kan ikke tegne “{c}” ({code}), så PdfCraft viser ? i stedet. Verdien lagres, og andre PDF-lesere tegner feltet på nytt ut fra den.
+	Sign a sheet of white paper and take a photo of it in bright, even light (use the flash). Choose the photo or drop it here: Leafy PDF finds the signature and removes the paper.	Signer på et hvitt ark og ta et bilde av det i sterkt, jevnt lys (bruk blitsen). Velg bildet eller slipp det her: Leafy PDF finner signaturen og fjerner papiret.
+	This field's font can't draw “{c}” ({code}), so Leafy PDF shows ? in its place. The value is saved, and other PDF viewers redraw the field from it.	Skriften i dette feltet kan ikke tegne “{c}” ({code}), så Leafy PDF viser ? i stedet. Verdien lagres, og andre PDF-lesere tegner feltet på nytt ut fra den.
 	{chars} can't be written into the PDF yet: Fill & Sign text is Western European only. Pick a numeric format such as dd.mm.yyyy.	{chars} kan ikke skrives inn i PDF-en ennå: Fyll ut og signer-tekst støtter bare vesteuropeiske tegn. Velg et numerisk format som dd.mm.yyyy.
 	January	januar
 	February	februar

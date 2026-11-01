@@ -8,12 +8,13 @@ pub(crate) struct SignatureBadge {
 }
 
 /// The validation badges drawn over one page's signature widgets: signed, visible widgets
-/// on this page with coordinates that survive the cast to screen space. Hostile files can
+/// on this page with coordinates that survive the cast to screen space. A signature whose
+/// appearance has a validity layer is skipped: its verdict is drawn in the artwork, as Acrobat does. Hostile files can
 /// carry NaN, infinite or gigantic rectangles, which must never reach the painter.
 pub(crate) fn signature_badges(signatures: &[pdfcraft_engine::SignatureInfo], page: usize) -> Vec<SignatureBadge> {
     signatures
         .iter()
-        .filter(|s| s.signed && s.visible && s.page == Some(page))
+        .filter(|s| s.signed && s.visible && !s.validity_layer && s.page == Some(page))
         .filter_map(|s| {
             s.rect.filter(|r| r.iter().all(|v| v.is_finite() && v.abs() < f32::MAX as f64)).map(|rect| SignatureBadge {
                 rect,
@@ -22,6 +23,42 @@ pub(crate) fn signature_badges(signatures: &[pdfcraft_engine::SignatureInfo], pa
             })
         })
         .collect()
+}
+
+/// A thick line through `points` with rounded ends and corners.
+fn thick_line(painter: &egui::Painter, points: &[Pos2], width: f32, color: egui::Color32) {
+    for pair in points.windows(2) {
+        painter.line_segment([pair[0], pair[1]], egui::Stroke::new(width, color));
+    }
+    for p in points {
+        painter.circle_filled(*p, width / 2.0, color);
+    }
+}
+
+/// The verdict mark painted over a signature: a translucent round badge holding a tick, a cross or
+/// a question mark, centred in a square of `side` around `center`.
+pub(super) fn paint_verdict_mark(painter: &egui::Painter, center: Pos2, side: f32, status: pdfcraft_engine::SignatureStatus) {
+    use egui::{Align2, Color32, FontId};
+    use pdfcraft_engine::SignatureStatus as S;
+    let at = |dx: f32, dy: f32| center + egui::vec2(dx * side, dy * side);
+    let (r, g, b) = match status {
+        S::Valid => (0x00, 0x80, 0x2E),
+        S::Invalid => (0xBF, 0x1A, 0x1A),
+        S::Unknown => (0xBF, 0x61, 0x00),
+    };
+    // Translucent, so the signer's text stays readable through the badge.
+    painter.circle_filled(center, side * 0.44, Color32::from_rgba_unmultiplied(r, g, b, 70));
+    let glyph = Color32::from_rgb(r, g, b);
+    match status {
+        S::Valid => thick_line(painter, &[at(-0.2, 0.0), at(-0.05, 0.16), at(0.22, -0.18)], side * 0.09, glyph),
+        S::Invalid => {
+            thick_line(painter, &[at(-0.17, -0.17), at(0.17, 0.17)], side * 0.09, glyph);
+            thick_line(painter, &[at(-0.17, 0.17), at(0.17, -0.17)], side * 0.09, glyph);
+        }
+        S::Unknown => {
+            painter.text(center, Align2::CENTER_CENTER, "?", FontId::proportional(side * 0.62), glyph);
+        }
+    }
 }
 
 /// Suppression window for egui's eased copy of point input.
@@ -111,7 +148,7 @@ pub(super) fn run_button(app: &mut PdfCraftApp, index: usize, name: &str, action
         }
         B::Alert(m) => app.notify(m),
         B::Submit(url) => app.notify_fmt(
-            "{name} submits the form to {url}; PdfCraft doesn't send form data. Save the document to keep your entries.",
+            "{name} submits the form to {url}; Leafy PDF doesn't send form data. Save the document to keep your entries.",
             &[("name", name), ("url", &url)],
         ),
         B::ImportIcon => app.choose_field_image(name),

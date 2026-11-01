@@ -33,7 +33,7 @@ mod validate;
 use changes::only_grew;
 #[cfg(test)]
 use listing::{DISCOVERY_CACHE_LIMIT, is_document_timestamp};
-pub use listing::{DigestCache, list, list_cached};
+pub use listing::{DigestCache, list, list_cached, with_validity_marks};
 pub(crate) use signing::fmt;
 pub use signing::{Appearance, AppearanceLabels, SignOptions, display_date, sign, sign_with_timestamp, timestamp_document};
 pub use types::{Detail, Fill, Modification, Status, TrustStore, WORDINGS, Words, in_english, kind};
@@ -56,6 +56,10 @@ pub struct SignatureInfo {
     pub page: Option<usize>,
     pub rect: Option<[f64; 4]>,
     pub visible: bool,
+    /// The signature's appearance carries a validity layer (Adobe's `% DSUnknown` placeholder),
+    /// so the verdict is drawn in the artwork itself ([`with_validity_marks`]) and needs no
+    /// overlay.
+    pub validity_layer: bool,
     /// The signer: the certificate's common name, else `/Name`.
     pub signer: Option<String>,
     pub certificate: Option<Certificate>,
@@ -92,6 +96,21 @@ pub struct SignatureInfo {
 }
 
 impl SignatureInfo {
+    /// The line Acrobat writes in place of a signer's baked-in "Signature Not Verified" caption once
+    /// the signature verifies: "Document certified by NAME <email>." for a certification signature.
+    /// `None` for any other verdict, where the signer's caption stays.
+    pub fn verified_caption(&self) -> Option<String> {
+        if self.status != Status::Valid || self.certify.is_none() {
+            return None;
+        }
+        let name = self.signer.as_deref()?;
+        let email = self.certificate.as_ref().and_then(|c| c.signer_email());
+        Some(match email {
+            Some(email) => format!("Document certified by {name} <{email}>."),
+            None => format!("Document certified by {name}."),
+        })
+    }
+
     /// The one-line summary under the signature in the Signatures panel, in English and listed in
     /// [`WORDINGS`] for an interface to say in its own language.
     pub fn summary(&self) -> &'static str {

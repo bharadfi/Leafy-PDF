@@ -64,6 +64,7 @@ fn signature(signed: bool, visible: bool, page: Option<usize>, rect: Option<[f64
         page,
         rect,
         visible,
+        validity_layer: false,
         signer: None,
         certificate: None,
         chain: Vec::new(),
@@ -2001,4 +2002,12 @@ fn a_moved_picture_is_drawn_from_the_fresh_raster_while_a_tile_is_still_stale() 
     assert_eq!(red(&pixels, old), 0, "nothing shows where it first was");
     h.state_mut().views[0].stale_tiles.clear();
     h.state_mut().views[0].tiles.clear();
+}
+
+#[test]
+fn signature_badges_skip_a_signature_whose_verdict_is_drawn_in_its_artwork() {
+    let rect = [10.0, 10.0, 100.0, 50.0];
+    let in_artwork = pdfcraft_engine::SignatureInfo { validity_layer: true, ..signature(true, true, Some(0), Some(rect)) };
+    let badges = signature_badges(&[in_artwork, signature(true, true, Some(0), Some(rect))], 0);
+    assert_eq!(badges.len(), 1, "only the signature with no validity layer gets an overlay");
 }

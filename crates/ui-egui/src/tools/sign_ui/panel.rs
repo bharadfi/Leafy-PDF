@@ -57,6 +57,8 @@ pub enum PanelAction {
     Validate,
     GoTo(usize),
     Trust(Box<Certificate>),
+    /// Take a directly trusted certificate out of the trusted list again.
+    Untrust(Box<Certificate>),
     ViewSigned {
         len: usize,
         revision: usize,
@@ -68,7 +70,13 @@ pub enum PanelAction {
 }
 
 /// The Signatures panel body.
-pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expanded: &mut Vec<String>) -> Option<PanelAction> {
+pub(crate) fn panel(
+    ui: &mut egui::Ui,
+    t: &Tokens,
+    sigs: &[SignatureInfo],
+    trusted: &[Certificate],
+    expanded: &mut Vec<String>,
+) -> Option<PanelAction> {
     let mut action = None;
     ui.horizontal(|ui| {
         if widgets::pill_button(ui, tl!("Validate all"), false).clicked() {
@@ -192,6 +200,14 @@ pub(crate) fn panel(ui: &mut egui::Ui, t: &Tokens, sigs: &[SignatureInfo], expan
                 {
                     action = Some(PanelAction::Trust(Box::new(c.clone())));
                 }
+                // Only the signer itself being in the list can be undone here; a signature trusted
+                // through an issuer or root is revoked on that certificate in the Certificate Viewer.
+                if let Some(c) = s.certificate.as_ref()
+                    && trusted.iter().any(|x| x.raw == c.raw)
+                    && ui.button(tl!("Remove from trusted certificates")).clicked()
+                {
+                    action = Some(PanelAction::Untrust(Box::new(c.clone())));
+                }
                 if ui.button(tl!("View signed version")).clicked() {
                     action = Some(PanelAction::ViewSigned { len: s.signed_len, revision: s.revision });
                 }
@@ -251,6 +267,7 @@ fn key_usage(bits: u16) -> String {
 /// What the viewer asks for.
 pub(crate) enum CertAction {
     Trust(Box<Certificate>),
+    Untrust(Box<Certificate>),
     Export(Box<Certificate>),
 }
 
@@ -337,6 +354,9 @@ pub(crate) fn cert_viewer(ui: &mut egui::Ui, v: &mut CertViewer, trusted: &[Cert
                     ui.add_space(8.0);
                     if !is_trusted && widgets::pill_button(ui, tl!("Add to Trusted Certificates"), false).clicked() {
                         action = Some(CertAction::Trust(Box::new(c.clone())));
+                    }
+                    if is_trusted && widgets::pill_button(ui, tl!("Remove from Trusted Certificates"), false).clicked() {
+                        action = Some(CertAction::Untrust(Box::new(c.clone())));
                     }
                 }
             }

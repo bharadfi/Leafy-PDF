@@ -1794,17 +1794,16 @@ fn page_overlays(ui: &mut egui::Ui, view: &mut DocView, frame: &mut PageFrame<'_
     for badge in signature_badges(&doc.signatures, i) {
         let [x0, y0, x1, y1] = badge.rect;
         let sr = xf.user_rect(info, i, [x0 as f32, y0 as f32, x1 as f32, y1 as f32]);
-        let (icon, color) = crate::sign_ui::signature_status_style(badge.status);
-        painter.rect_stroke(sr, CornerRadius::same(2), Stroke::new(1.5, color), egui::StrokeKind::Outside);
+        let (_, color) = crate::sign_ui::signature_status_style(badge.status);
         // A widget too small for the mark keeps its outline: the verdict still shows.
         if sr.width() < 4.0 || sr.height() < 4.0 {
+            painter.rect_stroke(sr, CornerRadius::same(2), Stroke::new(1.5, color), egui::StrokeKind::Outside);
             continue;
         }
-        // Big enough to read at a glance, small enough to leave the signer's own
-        // text visible around it.
-        let side = (sr.width().min(sr.height()) * 0.8).clamp(24.0, 192.0);
+        // Big enough to read at a glance, on the signer's own text as Acrobat and Foxit do it.
+        let side = (sr.width().min(sr.height()) * 0.9).clamp(24.0, 192.0);
         let mark = Rect::from_center_size(sr.center(), vec2(side, side));
-        icons::paint(ui, mark, icon, side * 0.64, color);
+        area::paint_verdict_mark(&painter, mark.center(), side, badge.status);
         // Overlapping widgets paint in order, so the topmost badge's verdict is the tip, with
         // any tool; a link's or a comment's tip wins over any badge.
         if pointer.is_some_and(|p| mark.expand(2.0).contains(p)) {

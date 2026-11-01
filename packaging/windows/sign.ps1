@@ -12,10 +12,12 @@
   still produce installers.
 
   This is the one place to adapt when the signing setup changes (an HSM/cloud key, a different
-  timestamp server, ...). Optional overrides: WINDOWS_TIMESTAMP_URL, SIGNTOOL (path to signtool.exe).
+  timestamp server, ...).   Optional overrides: WINDOWS_TIMESTAMP_URL, SIGNTOOL (path to signtool.exe).
+  WINDOWS_SELF_SIGNED=<thumbprint> marks WINDOWS_CERTIFICATE as a self-signed certificate: the trust check
+  (`signtool verify /pa`) is replaced by a check that the signature is intact and made by that certificate.
 
 .EXAMPLE
-  pwsh packaging/windows/sign.ps1 dist/pdfcraft.exe dist/Pdfcraft.msi
+  pwsh packaging/windows/sign.ps1 dist/leafypdf.exe dist/Pdfcraft.msi
 #>
 param(
   [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
@@ -55,7 +57,7 @@ if (-not $haveCert -and -not $haveAzure) {
 }
 
 $script:SignTool = Find-SignTool
-$common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'PdfCraft', '/du', 'https://github.com/storytold/pdfcraft')
+$common = @('sign', '/v', '/fd', 'SHA256', '/td', 'SHA256', '/d', 'Leafy PDF')
 $tmp = Join-Path ([IO.Path]::GetTempPath()) "pdfcraft-sign-$([IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
@@ -95,7 +97,22 @@ try {
     $ts = if ($env:WINDOWS_TIMESTAMP_URL) { $env:WINDOWS_TIMESTAMP_URL } else { 'http://timestamp.acs.microsoft.com' }
     Invoke-SignTool ($common + @('/tr', $ts, '/dlib', $dlib.FullName, '/dmdf', $metadata) + $Files)
   }
-  Invoke-SignTool (@('verify', '/pa', '/v') + $Files)
+  if ($env:WINDOWS_SELF_SIGNED) {
+    # A self-signed certificate cannot chain to a root Windows trusts, so `signtool verify /pa` is bound to fail.
+    # Check instead that every file carries a signature made by this certificate and that its contents
+    # still match it (a changed file reports HashMismatch).
+    $expected = $env:WINDOWS_SELF_SIGNED.Trim().ToUpperInvariant()
+    foreach ($file in $Files) {
+      $signature = Get-AuthenticodeSignature -LiteralPath $file
+      if (-not $signature.SignerCertificate) { throw "$file carries no signature" }
+      if ($signature.SignerCertificate.Thumbprint.ToUpperInvariant() -ne $expected) { throw "$file is signed by an unexpected certificate" }
+      if ("$($signature.Status)" -eq 'HashMismatch') { throw "$file does not match its signature" }
+      Write-Output "ok signature: $(Split-Path $file -Leaf) signed by $($signature.SignerCertificate.Subject) ($($signature.Status); the signer is self-signed, so it is not trusted by Windows)"
+    }
+  }
+  else {
+    Invoke-SignTool (@('verify', '/pa', '/v') + $Files)
+  }
 }
 finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

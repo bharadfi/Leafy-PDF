@@ -1,6 +1,6 @@
 use super::types::{Modification, Status, TrustStore};
 use super::validate::{is_doc_timestamp, validate_doc_timestamp, validate_into};
-use super::{Arc, Dict, DigestAlg, Document, HashMap, HashSet, ObjRef, Object, SignatureInfo};
+use super::{Arc, Dict, DigestAlg, Document, HashMap, HashSet, ObjRef, Object, SignatureInfo, Stream};
 
 /// Digests of signed byte ranges (and parsed signed revisions), kept across revalidations of
 /// one document: incremental edits only append to the file, so the signed bytes and their
@@ -240,6 +240,234 @@ pub(super) fn sig_fields(doc: &Document) -> Vec<Field> {
     out
 }
 
+/// How deep a signature appearance's form XObjects are followed looking for validity layers.
+const VALIDITY_LAYER_DEPTH: usize = 6;
+/// The most of a layer's decoded content read to find its marker comment.
+const VALIDITY_LAYER_PROBE: usize = 64 * 1024;
+
+/// The verdict a validity layer stands for, from the marker comment its content opens with.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mark {
+    Unknown,
+    Valid,
+    Invalid,
+    /// The signer's baked-in "Signature Not Verified" caption (Adobe's `n4`): a reader shows its
+    /// own caption instead once the signature verifies.
+    Caption,
+}
+
+/// The wording a signer bakes into the caption layer; Acrobat replaces it with the verdict's own.
+const NOT_VERIFIED_CAPTION: &[u8] = b"(Signature Not Verified)";
+
+/// The mark `stream` is a placeholder for, when it is one of Adobe's validity layers: a form
+/// XObject whose content opens with a `% DSUnknown`, `% DSValid` or `% DSInvalid` comment.
+/// Signing software bakes these in beside the signer's text (`n1`, drawn under it); a reader
+/// replaces them with the verdict it reached. (`% DSBlank` layers are empty and need nothing.)
+fn layer_mark(stream: &Stream) -> Option<Mark> {
+    if stream.dict.name(b"Subtype") != Some(b"Form") {
+        return None;
+    }
+    let content = stream.decoded_within(VALIDITY_LAYER_PROBE).ok()?;
+    if content.windows(NOT_VERIFIED_CAPTION.len()).any(|w| w == NOT_VERIFIED_CAPTION) {
+        return Some(Mark::Caption);
+    }
+    let rest = content.trim_ascii_start().strip_prefix(b"% DS")?;
+    let word: Vec<u8> = rest.iter().copied().take_while(u8::is_ascii_alphabetic).collect();
+    match word.as_slice() {
+        b"Unknown" => Some(Mark::Unknown),
+        b"Valid" => Some(Mark::Valid),
+        b"Invalid" => Some(Mark::Invalid),
+        _ => None,
+    }
+}
+
+/// The validity layers reachable from `appearance` (a signature widget's `/AP /N`), by reference.
+fn collect_validity_layers(doc: &Document, appearance: &Object, depth: usize, seen: &mut HashSet<ObjRef>, out: &mut Vec<(ObjRef, Mark)>) {
+    let resolved = doc.resolve(appearance);
+    let Object::Stream(stream) = &*resolved else { return };
+    if let Some(r) = appearance.as_ref() {
+        if !seen.insert(r) {
+            return;
+        }
+        if let Some(mark) = layer_mark(stream) {
+            out.push((r, mark));
+            return;
+        }
+    }
+    if depth >= VALIDITY_LAYER_DEPTH {
+        return;
+    }
+    let xobjects =
+        stream.dict.get(b"Resources").map(|r| doc.resolve(r)).and_then(|r| r.as_dict().and_then(|d| d.get(b"XObject").map(|x| doc.resolve(x))));
+    let Some(xobjects) = xobjects.as_ref().and_then(|x| x.as_dict().cloned()) else { return };
+    for (_, child) in xobjects.iter() {
+        collect_validity_layers(doc, child, depth + 1, seen, out);
+    }
+}
+
+/// The validity layers of one signature widget's normal appearance.
+fn widget_validity_layers(doc: &Document, widget: &Dict) -> Vec<(ObjRef, Mark)> {
+    let mut layers = Vec::new();
+    if let Some(normal) = widget.get(b"AP").map(|ap| doc.resolve(ap)).and_then(|ap| ap.as_dict().and_then(|d| d.get(b"N").cloned())) {
+        collect_validity_layers(doc, &normal, 0, &mut HashSet::new(), &mut layers);
+    }
+    layers
+}
+
+/// The content of a validity layer drawing `status`, in the layer's own `bbox` (Adobe lays these
+/// out on a 100 x 100 square): a translucent round badge holding a tick, a cross or a question
+/// mark, so the signer's text stays readable through it. The first line
+/// is the marker comment, so the layer reads as the verdict it now shows.
+fn mark_content(status: Status, bbox: [f64; 4]) -> Vec<u8> {
+    let (sx, sy) = ((bbox[2] - bbox[0]).abs() / 100.0, (bbox[3] - bbox[1]).abs() / 100.0);
+    let place = format!("q {sx} 0 0 {sy} {} {} cm 1 J 1 j", bbox[0].min(bbox[2]), bbox[1].min(bbox[3]));
+    // A round badge: a pale tint of the verdict colour (so the signer's text reads through it) and
+    // the glyph in the same colour, both translucent.
+    let (marker, rgb, glyph) = match status {
+        Status::Valid => ("% DSValid", "0.0 0.5 0.18", "9 w 30 50 m 45 34 l 72 68 l S"),
+        Status::Invalid => ("% DSInvalid", "0.75 0.1 0.1", "9 w 33 33 m 67 67 l S 33 67 m 67 33 l S"),
+        Status::Unknown => ("% DSUnknown", "0.75 0.38 0.0", "BT /DSF 62 Tf 31 30 Td (?) Tj ET"),
+    };
+    let lines: Vec<String> = vec![
+        marker.into(),
+        place,
+        format!("/DSA gs {rgb} rg 94 50 m 94 74.3 74.3 94 50 94 c 25.7 94 6 74.3 6 50 c 6 25.7 25.7 6 50 6 c 74.3 6 94 25.7 94 50 c f"),
+        format!("/DSB gs {rgb} RG {rgb} rg {glyph}"),
+        "Q".into(),
+    ];
+    // One operator group per line, ending in a newline, so the marker comment stays on its own line.
+    lines.into_iter().map(|l| l + "\n").collect::<String>().into_bytes()
+}
+
+/// `content` (a caption layer: one `Tf`, one `Tm`, `(Signature Not Verified) Tj`) with `text` in
+/// place of the signer's words. A caption with an address after its name (`... <a@b>`) goes on two
+/// lines, and the font shrinks so the longest line fits `bbox`'s width.
+fn caption_content(content: &[u8], text: &str, bbox: Option<&[f64]>) -> Option<Vec<u8>> {
+    content.windows(NOT_VERIFIED_CAPTION.len()).any(|w| w == NOT_VERIFIED_CAPTION).then_some(())?;
+    let ops = String::from_utf8_lossy(content).into_owned();
+    let tf = ops.find(" Tf")?;
+    let size: f64 = ops[..tf].rsplit(|c: char| c.is_whitespace()).find(|t| !t.is_empty())?.parse().ok()?;
+    let font = ops[..tf].rsplit('/').next().and_then(|f| f.split_whitespace().next())?.to_string();
+    let (x0, y0, x1, y1) = match bbox {
+        Some([a, b, c, d]) => (a.min(*c), b.min(*d), a.max(*c), b.max(*d)),
+        _ => return None,
+    };
+    let lines: Vec<String> = match text.split_once(" <") {
+        Some((name, address)) => vec![name.to_string(), format!("<{address}")],
+        None => vec![text.to_string()],
+    };
+    let longest = lines.iter().map(|l| l.chars().count()).max().unwrap_or(1) as f64;
+    // Helvetica averages about 0.6 em per character in capitals and lower case mixed.
+    let fitted = ((x1 - x0 - 4.0) / (longest * 0.6)).min(size).max(3.0);
+    let escape = |l: &str| -> String {
+        l.chars()
+            .map(|c| match c {
+                '(' | ')' | '\\' => format!("\\{c}"),
+                c if (' '..='~').contains(&c) => c.to_string(),
+                _ => "?".to_string(),
+            })
+            .collect()
+    };
+    let mut out = String::from("BT\n");
+    for (i, line) in lines.iter().enumerate() {
+        let y = y1 - fitted * (i as f64 + 1.0);
+        out += &format!("/{font} {fitted:.2} Tf 1 0 0 1 2 {:.2} Tm ({}) Tj\n", y.max(y0), escape(line));
+    }
+    out += "ET\n";
+    Some(out.into_bytes())
+}
+
+/// The resources [`mark_content`] needs: only the question mark draws text.
+fn mark_resources(status: Status) -> Dict {
+    let mut resources = Dict::new();
+    let mut states = Dict::new();
+    for (name, alpha) in [(&b"DSA"[..], 0.28), (&b"DSB"[..], 1.0)] {
+        let mut gs = Dict::new();
+        gs.set(b"Type", Object::name("ExtGState"));
+        gs.set(b"ca", Object::Real(alpha));
+        gs.set(b"CA", Object::Real(alpha));
+        states.set(name, Object::Dict(gs));
+    }
+    resources.set(b"ExtGState", Object::Dict(states));
+    if status == Status::Unknown {
+        let mut font = Dict::new();
+        font.set(b"Type", Object::name("Font"));
+        font.set(b"Subtype", Object::name("Type1"));
+        font.set(b"BaseFont", Object::name("Helvetica-Bold"));
+        let mut fonts = Dict::new();
+        fonts.set(b"DSF", Object::Dict(font));
+        resources.set(b"Font", Object::Dict(fonts));
+    }
+    resources
+}
+
+/// `doc` with each signature appearance's validity layer showing the verdict `verdict` gives for
+/// its field, or `None` when nothing needs to change (no such layer, or it already shows that
+/// verdict). Acrobat does this in memory: the layer the signer baked in as a placeholder is
+/// replaced by the mark for the reader's own verdict and drawn where it was, under the signer's
+/// text. For the copy a reader *displays or prints*; the signed file is never changed, since a
+/// signature covers its own bytes.
+///
+/// `caption` gives, for a field whose signature verifies, the line Acrobat writes in place of the
+/// signer's "Signature Not Verified" caption (e.g. "Document certified by NAME <email>."); a field it
+/// gives none for keeps the signer's caption, which is then true.
+pub fn with_validity_marks(
+    doc: &Document,
+    verdict: &dyn Fn(&str) -> Option<Status>,
+    caption: &dyn Fn(&str) -> Option<String>,
+) -> Option<Document> {
+    enum Change {
+        Mark(Status),
+        Caption(String),
+    }
+    let mut changes: Vec<(ObjRef, Change)> = Vec::new();
+    for field in sig_fields(doc) {
+        let Some(status) = verdict(&field.name) else { continue };
+        for (_, widget) in &field.widgets {
+            for (r, mark) in widget_validity_layers(doc, widget) {
+                if changes.iter().any(|(c, _)| *c == r) {
+                    continue;
+                }
+                // Every validity layer is redrawn, even one that already says the same: the signer's
+                // own artwork would otherwise show a different style from the verdict's.
+                if mark != Mark::Caption {
+                    changes.push((r, Change::Mark(status)));
+                } else if let Some(text) = caption(&field.name) {
+                    changes.push((r, Change::Caption(text)));
+                }
+            }
+        }
+    }
+    if changes.is_empty() {
+        return None;
+    }
+    let mut copy = doc.clone();
+    for (r, change) in changes {
+        let Object::Stream(s) = &*doc.get(r) else { continue };
+        let status = match change {
+            Change::Caption(text) => {
+                // The signer's own font, position and size stay; only the words change, wrapped
+                // and shrunk to the layer's width.
+                let Ok(content) = s.decoded() else { continue };
+                if let Some(replaced) = caption_content(&content, &text, nums(doc, &s.dict, b"BBox").as_deref()) {
+                    copy.set(r, Object::Stream(Stream::flate(s.dict.clone(), &replaced)));
+                }
+                continue;
+            }
+            Change::Mark(status) => status,
+        };
+        // The dictionary stays (`/BBox`, `/Matrix`), so the layer is placed exactly as it was.
+        let bbox = match nums(doc, &s.dict, b"BBox").as_deref() {
+            Some([a, b, c, d]) => [*a, *b, *c, *d],
+            _ => [0.0, 0.0, 100.0, 100.0],
+        };
+        let mut dict = s.dict.clone();
+        dict.set(b"Resources", Object::Dict(mark_resources(status)));
+        copy.set(r, Object::Stream(Stream::flate(dict, &mark_content(status, bbox))));
+    }
+    Some(copy)
+}
+
 /// Which page holds each annotation.
 fn annot_pages(doc: &Document) -> HashMap<ObjRef, usize> {
     let mut map = HashMap::new();
@@ -289,6 +517,7 @@ pub fn list_cached(doc: &Document, bytes: &[u8], trust: &TrustStore, cache: &Dig
             page,
             rect,
             visible,
+            validity_layer: widget.is_some_and(|(_, w)| widget_validity_layers(doc, w).iter().any(|(_, m)| *m != Mark::Caption)),
             signer: None,
             certificate: None,
             chain: Vec::new(),
@@ -332,6 +561,7 @@ pub fn list_cached(doc: &Document, bytes: &[u8], trust: &TrustStore, cache: &Dig
             page: None,
             rect: None,
             visible: false,
+            validity_layer: false,
             signer: None,
             certificate: None,
             chain: Vec::new(),
@@ -372,4 +602,33 @@ pub(super) fn mk_rotation(doc: &Document, widget: &Dict) -> i64 {
         .and_then(|mk| mk.as_dict().and_then(|mk| mk.get(b"R")).map(|r| doc.resolve(r)))
         .and_then(|r| r.as_int().or_else(|| r.as_f64().filter(|v| v.is_finite() && v.abs() <= 1.0e6).map(|v| v.round() as i64)));
     r.map(|r| r.rem_euclid(360)).filter(|q| matches!(q, 90 | 180 | 270)).unwrap_or(0)
+}
+
+#[cfg(test)]
+mod caption_tests {
+    use super::caption_content;
+
+    /// The caption layer (`n4`) of the Income Tax intimation: one line, 11.72 pt, in a 120 x 16.5 box.
+    const LAYER: &[u8] = b"BT\n1 0 0 1 2 41.28 Tm\n/F1 11.72 Tf\n(Signature Not Verified)Tj\nET";
+
+    #[test]
+    fn a_certified_caption_replaces_the_signers_words_on_two_lines_that_fit_the_layer() {
+        let text = "Document certified by NAGAMANICKAM SAYIRAJ <NAGAMANICKAM.SAYIRAJ@INCOMETAX.GOV.IN>.";
+        let out = caption_content(LAYER, text, Some(&[0.0, 38.5, 120.0, 55.0])).unwrap();
+        let out = String::from_utf8(out).unwrap();
+        assert!(!out.contains("Signature Not Verified"), "{out}");
+        assert!(out.contains("(Document certified by NAGAMANICKAM SAYIRAJ) Tj"), "{out}");
+        assert!(out.contains("(<NAGAMANICKAM.SAYIRAJ@INCOMETAX.GOV.IN>.) Tj"), "{out}");
+        let size: f64 = out.split(" Tf").next().unwrap().rsplit(' ').next().unwrap().parse().unwrap();
+        assert!(size < 11.72 && size >= 3.0, "shrunk to fit: {size}");
+        // The text stays inside the 120-wide layer at the shrunk size (0.6 em per character).
+        assert!(size * 0.6 * 43.0 <= 120.0, "{size}");
+    }
+
+    #[test]
+    fn parentheses_and_non_latin_letters_cannot_break_the_content_stream() {
+        let out = caption_content(LAYER, "Document certified by A) B\\ \u{0928}.", Some(&[0.0, 0.0, 120.0, 55.0])).unwrap();
+        let out = String::from_utf8(out).unwrap();
+        assert!(out.contains("(Document certified by A\\) B\\\\ ?.) Tj"), "{out}");
+    }
 }

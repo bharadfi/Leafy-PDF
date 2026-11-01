@@ -36,9 +36,11 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let mac = cfg!(target_os = "macos") && app.integrated_titlebar;
     let left = if mac { MAC_CONTENT_LEFT as i8 } else { 8 };
     let (tab_h, button) = if mac { (MAC_TITLE_BAR - 2.0, 24.0) } else { (TAB_HEIGHT, STRIP_BUTTON) };
+    // Windows: the strip is the title bar, and its caption buttons reach the window's right edge.
+    let flush_right = window_controls::flat() && app.draws_window_frame();
     egui::Panel::top("tab_strip")
         .exact_size(if mac { MAC_TITLE_BAR } else { TAB_STRIP })
-        .frame(egui::Frame::NONE.fill(t.titlebar).inner_margin(egui::Margin { left, right: 10, top: 0, bottom: 0 }))
+        .frame(egui::Frame::NONE.fill(t.titlebar).inner_margin(egui::Margin { left, right: if flush_right { 0 } else { 10 }, top: 0, bottom: 0 }))
         .show(ui, |ui| {
             let full = ui.max_rect();
             let drag = ui.interact(full, ui.scope_id().with("titledrag"), Sense::click_and_drag());
@@ -69,11 +71,10 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.active = None;
                     app.combine_tab.focused = false;
                 }
-                // Reserve the three icon buttons, Discord and their gaps outside the scrolling tabs.
-                let controls_width = ui.fonts_mut(|f| f.layout_no_wrap("Discord".into(), theme::medium(13.0), t.text).size().x)
-                    + 3.0 * button
-                    + 54.0
-                    + window_controls::width(&controls.right);
+                // Reserve the icon buttons, the window buttons and their gaps outside the scrolling tabs.
+                let window_buttons =
+                    if window_controls::flat() { window_controls::flat_width(&controls.right) } else { window_controls::width(&controls.right) };
+                let controls_width = 3.0 * button + 30.0 + window_buttons;
                 // Open stays in sight after the tabs: its icon, text and padding, and the gaps around it.
                 let open_width = ui.fonts_mut(|f| f.layout_no_wrap(tl!("Open").into(), theme::medium(13.0), t.text).size().x) + 38.0 + 12.0;
                 let mut tabs_width = (ui.available_width() - controls_width - open_width).max(0.0);
@@ -277,7 +278,15 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.open_dialog();
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if !controls.right.is_empty() {
+                    if !controls.right.is_empty() && window_controls::flat() {
+                        // Windows: flat caption buttons, as tall as the strip, flush with its right edge.
+                        let size = egui::vec2(window_controls::flat_width(&controls.right), TAB_STRIP);
+                        ui.allocate_ui_with_layout(size, Layout::left_to_right(Align::Center), |ui| {
+                            ui.spacing_mut().item_spacing.x = 0.0;
+                            window_controls::flat_buttons(ui, &controls.right, TAB_STRIP);
+                        });
+                        ui.add_space(6.0);
+                    } else if !controls.right.is_empty() {
                         // Laid out left to right inside the right-to-left run, so they read in
                         // the desktop's order.
                         let size = egui::vec2(window_controls::width(&controls.right) - window_controls::SIDE_GAP, window_controls::BUTTON);
@@ -308,10 +317,6 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     egui::Popup::context_menu(&response).id(response.id.with("theme_menu")).show(|ui| appearance_menu(app, ui));
                     if icons::button(ui, "circle-help", button, false, tl!("Keyboard shortcuts")).clicked() {
                         app.dialog = Some(Dialog::Shortcuts);
-                    }
-                    // One click to the community, from anywhere in the app.
-                    if widgets::ghost_button_sized(ui, "messages-square", "Discord", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD).clicked() {
-                        app.execute("help.discord");
                     }
                 });
             });

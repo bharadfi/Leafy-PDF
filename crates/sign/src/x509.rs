@@ -139,6 +139,8 @@ pub struct Certificate {
     pub ocsp_urls: Vec<String>,
     /// CRL distribution point URLs (2.5.29.31).
     pub crl_urls: Vec<String>,
+    /// Email addresses (rfc822Name) in the subject alternative name (2.5.29.17).
+    pub alt_emails: Vec<String>,
     /// The `version` field: 0 for v1, 1 for v2, 2 for v3.
     pub version: u64,
     /// OIDs of extensions marked critical that PdfCraft does not process (RFC 5280 §4.2).
@@ -189,6 +191,7 @@ struct Extensions {
     extended_key_usage: Option<Vec<String>>,
     ocsp_urls: Vec<String>,
     crl_urls: Vec<String>,
+    alt_emails: Vec<String>,
 }
 
 impl Extensions {
@@ -251,6 +254,15 @@ impl Extensions {
                     let Ok(a) = access.children() else { continue };
                     if a.len() >= 2 && a[0].oid().ok().as_deref() == Some("1.3.6.1.5.5.7.48.1") && a[1].tag == tag::ctx_prim(6) {
                         self.ocsp_urls.push(String::from_utf8_lossy(a[1].value).into_owned());
+                    }
+                }
+            }
+            // Subject alternative name: the rfc822Name [1] entries (email addresses).
+            "2.5.29.17" => {
+                let Ok(names) = Tlv::parse_all(value.value) else { return };
+                for n in names.children().unwrap_or_default() {
+                    if n.tag == tag::ctx_prim(1) {
+                        self.alt_emails.push(String::from_utf8_lossy(n.value).into_owned());
                     }
                 }
             }
@@ -334,6 +346,7 @@ impl Certificate {
             extended_key_usage,
             ocsp_urls,
             crl_urls,
+            alt_emails,
         } = ext;
         Ok(Certificate {
             raw: raw.to_vec(),
@@ -355,9 +368,16 @@ impl Certificate {
             extended_key_usage,
             ocsp_urls,
             crl_urls,
+            alt_emails,
             version,
             unknown_critical,
         })
+    }
+
+    /// The signer's email address: the subject's `emailAddress`, else the first email in the subject
+    /// alternative name (where certificates like the Income Tax Department's carry it).
+    pub fn signer_email(&self) -> Option<&str> {
+        self.subject.email().or_else(|| self.alt_emails.first().map(String::as_str))
     }
 
     /// Why this certificate may not sign documents, if it may not (RFC 5280 §4.2.1.3,

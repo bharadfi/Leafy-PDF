@@ -43,11 +43,9 @@ fn harness(dir: std::path::PathBuf) -> Harness<'static, PdfCraftApp> {
     h
 }
 
-#[test]
-fn one_click_trust_stores_the_displayed_signer_not_the_embedded_root() {
-    let dir = dir();
-    let mut h = harness(dir);
-    // Sign with chain.p12, whose CMS embeds the signer's issuer chain (signer + self-signed root).
+/// A document signed with chain.p12, whose CMS embeds the signer's issuer chain (signer + self-signed root).
+fn signed_with_chain() -> Harness<'static, PdfCraftApp> {
+    let mut h = harness(dir());
     let p12 = concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/chain.p12");
     let id = pdfcraft_engine::sign::pkcs12::open(&std::fs::read(p12).unwrap(), "test").unwrap();
     let entry = h.state_mut().add_digital_id(p12, &id.certificate);
@@ -61,6 +59,36 @@ fn one_click_trust_stores_the_displayed_signer_not_the_embedded_root() {
     h.run_steps(2);
     support::outside_menus(&h, "Sign").click();
     h.run_steps(6);
+    h
+}
+
+#[test]
+fn removing_a_trusted_signer_takes_it_off_the_list_and_the_signature_goes_back_to_unknown() {
+    let mut h = signed_with_chain();
+    h.get_by_label_contains("Signed by").click();
+    h.run_steps(2);
+    h.get_by_label("Add to trusted certificates").click();
+    h.run_steps(3);
+    {
+        let s = h.state();
+        assert_eq!(s.session.trusted_certificates().len(), 1, "the signer is trusted");
+        let sig = s.session.get(s.views[0].id).unwrap().signatures.iter().find(|x| x.signed).cloned().unwrap();
+        assert_eq!(sig.status, SignatureStatus::Valid);
+    }
+    // The trust button is gone and a remove button takes its place.
+    assert!(h.query_by_label("Add to trusted certificates").is_none());
+    h.get_by_label("Remove from trusted certificates").click();
+    h.run_steps(3);
+    let s = h.state();
+    assert!(s.session.trusted_certificates().is_empty(), "the signer is no longer trusted");
+    let sig = s.session.get(s.views[0].id).unwrap().signatures.iter().find(|x| x.signed).cloned().unwrap();
+    assert_eq!(sig.status, SignatureStatus::Unknown, "an untrusted signer shows an unknown identity again");
+}
+
+#[test]
+fn one_click_trust_stores_the_displayed_signer_not_the_embedded_root() {
+    // Sign with chain.p12, whose CMS embeds the signer's issuer chain (signer + self-signed root).
+    let mut h = signed_with_chain();
 
     // The signature validates as Unknown and carries a two-certificate chain whose top (the root)
     // is a different certificate from the displayed signer.

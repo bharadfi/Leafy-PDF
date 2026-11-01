@@ -214,11 +214,6 @@ impl PdfCraftApp {
                     self.notify_tr("Security will be removed when you save");
                 }
             }
-            link if pdfcraft_engine::links::for_command(link).is_some() => {
-                if let Some(l) = pdfcraft_engine::links::for_command(link) {
-                    self.open_url(l.url);
-                }
-            }
             "app.preferences" => self.dialog = Some(Dialog::Preferences),
             "protect.remove_hidden" => self.open_remove_hidden(),
             "print.dialog" => self.open_print(),
@@ -246,7 +241,6 @@ impl PdfCraftApp {
             "optimize.reduce" => self.reduce_file_size(),
             "help.shortcuts" => self.dialog = Some(Dialog::Shortcuts),
             "help.about" => self.dialog = Some(Dialog::About),
-            "help.check_updates" => self.check_for_updates(),
             _ => return None,
         }
         Some(true)

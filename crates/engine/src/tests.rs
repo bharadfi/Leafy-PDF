@@ -4807,6 +4807,99 @@ fn chamfered_signature_borders_survive_trust_exports_printing_and_save() {
     }
 }
 
+/// The decoded content of object `number` in `bytes`.
+fn object_content(bytes: &Arc<Vec<u8>>, number: u32) -> Vec<u8> {
+    let doc = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+    match &*doc.get(pdfcraft_cos::ObjRef::new(number, 0)) {
+        pdfcraft_cos::Object::Stream(s) => s.decoded().unwrap(),
+        other => panic!("object {number} is not a stream: {other:?}"),
+    }
+}
+
+/// Whether any stream in `bytes` decodes to something containing `needle`.
+fn any_stream_has(bytes: &Arc<Vec<u8>>, needle: &[u8]) -> bool {
+    let doc = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+    (1..400).any(|n| match &*doc.get(pdfcraft_cos::ObjRef::new(n, 0)) {
+        pdfcraft_cos::Object::Stream(s) => s.decoded().is_ok_and(|c| bytes_has(&c, needle)),
+        _ => false,
+    })
+}
+
+#[test]
+fn a_validity_layer_shows_the_verdict_on_screen_and_in_print_while_the_file_keeps_the_signers_layer() {
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let id = sign::pkcs12::open(&p12, "test").unwrap();
+    let anchor = id.chain.first().cloned().unwrap_or_else(|| id.certificate.clone());
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
+    // Object 10 is a layer of the signature's appearance; Adobe marks its validity layer this way.
+    signature_layer_ops(&mut doc, 10, b"% DSUnknown\n0.8 0.1 0.1 RG 3 w 5 5 m 20 5 l 12 22 l h S");
+    // A real signature widget carries the Print flag (the Income Tax and insurer files use /F 132).
+    doc.update_dict(pdfcraft_cos::ObjRef::new(4, 0), |d| d.set(b"F", pdfcraft_cos::Object::Int(4))).unwrap();
+    let signed = Arc::new(sign_prepared(&mut doc, &id, "D:20261002120000+01'00'"));
+    let mut s = Session::new().with_clock(|| 1_800_000_000);
+    let vid = s.open("validity.pdf", None, signed.clone(), None).unwrap();
+    let shown = s.get(vid).unwrap();
+    assert!(shown.signatures[0].validity_layer, "the signature's artwork carries a validity layer");
+    assert!(bytes_has(&object_content(&shown.display, 10), b"/DSA gs"), "untrusted, the signer's question mark is redrawn as the round badge");
+    // Trusting the signer turns that layer into a tick, on screen and in print, under the signer's text.
+    s.set_trusted_certificates(vec![anchor]);
+    let shown = s.get(vid).unwrap();
+    assert_eq!(shown.signatures[0].status, SignatureStatus::Valid);
+    let layer = object_content(&shown.display, 10);
+    assert!(
+        layer.starts_with(b"% DSValid") && bytes_has(&layer, b"0.0 0.5 0.18 rg"),
+        "the on-screen layer is a green tick badge:{:?}",
+        String::from_utf8_lossy(&layer)
+    );
+    assert!(object_content(&shown.bytes, 10).starts_with(b"% DSUnknown"), "the working file still has the signer's layer");
+    assert!(object_content(&shown.display, 9).starts_with(b"BT"), "the signer's own text layer is untouched");
+    let settings = print::Settings { pages: vec![0], paper: (200.0, 200.0), ..Default::default() };
+    let printed = Arc::new(s.print_pdf(vid, &settings).unwrap());
+    assert!(any_stream_has(&printed, b"% DSValid"), "Print to PDF carries the tick");
+    assert!(!any_stream_has(&printed, b"% DSUnknown"), "and not the signer's question mark");
+    // Saving writes the signer's layer back as it was: the verdict never reaches the file.
+    let saved = s.save_bytes(vid).unwrap();
+    assert!(object_content(&saved, 10).starts_with(b"% DSUnknown"));
+    // Revoking trust puts the question mark back.
+    s.set_trusted_certificates(Vec::new());
+    let shown = s.get(vid).unwrap();
+    assert_eq!(shown.signatures[0].status, SignatureStatus::Unknown);
+    assert!(object_content(&shown.display, 10).starts_with(b"% DSUnknown"));
+    let printed = Arc::new(s.print_pdf(vid, &settings).unwrap());
+    assert!(any_stream_has(&printed, b"% DSUnknown") && !any_stream_has(&printed, b"% DSValid"));
+}
+
+#[test]
+fn every_validity_layer_is_redrawn_as_the_verdict() {
+    use SignatureStatus::{Invalid, Unknown, Valid};
+    for (content, status, replaced_by) in [
+        (&b"% DSUnknown\n0 0 10 10 re f"[..], Unknown, Some(&b"% DSUnknown"[..])),
+        (&b"% DSUnknown\n0 0 10 10 re f"[..], Valid, Some(&b"% DSValid"[..])),
+        (&b"% DSUnknown\n0 0 10 10 re f"[..], Invalid, Some(&b"% DSInvalid"[..])),
+        (&b"% DSValid\n0 0 10 10 re f"[..], Valid, Some(&b"% DSValid"[..])),
+        // A signer's claim of "valid" is not believed: the reader's own verdict is drawn.
+        (&b"% DSValid\n0 0 10 10 re f"[..], Unknown, Some(&b"% DSUnknown"[..])),
+        (&b"% DSBlank"[..], Valid, None),
+        (&b"0 0 10 10 re f"[..], Valid, None),
+        (
+            &b"% DSUnknownish text
+"[..],
+            Valid,
+            None,
+        ),
+    ] {
+        let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
+        signature_layer_ops(&mut doc, 10, content);
+        let copy = sign::pdf::with_validity_marks(&doc, &|_| Some(status), &|_| None);
+        let case = format!("{:?} shown as {status:?}", String::from_utf8_lossy(content));
+        assert_eq!(copy.is_some(), replaced_by.is_some(), "{case}");
+        if let (Some(copy), Some(marker)) = (copy, replaced_by) {
+            let pdfcraft_cos::Object::Stream(layer) = &*copy.get(pdfcraft_cos::ObjRef::new(10, 0)) else { panic!("{case}: not a stream") };
+            assert!(layer.decoded().unwrap().starts_with(marker), "{case}");
+        }
+    }
+}
+
 #[test]
 fn mixed_signature_caption_details_survive_trust_exports_printing_and_save() {
     let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();

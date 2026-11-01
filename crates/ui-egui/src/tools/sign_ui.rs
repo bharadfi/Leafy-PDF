@@ -564,6 +564,18 @@ impl PdfCraftApp {
         self.apply_trusted_certificates(certs);
     }
 
+    /// Take `cert` out of the trusted certificates (the reverse of [`Self::trust_certificate`]),
+    /// revalidating: signatures that relied on it go back to an unknown signer. A certificate
+    /// that is not in the list changes nothing.
+    pub fn untrust_certificate(&mut self, cert: &Certificate) {
+        let mut certs = self.session.trusted_certificates().to_vec();
+        let before = certs.len();
+        certs.retain(|c| c.raw != cert.raw);
+        if certs.len() != before {
+            self.apply_trusted_certificates(certs);
+        }
+    }
+
     /// Replace the trust store and redraw from the rebuilt display copy. One helper
     /// so no caller can revalidate without invalidating: trust changes verdicts,
     /// verdicts choose what the display copy shows, and the old rasters would
@@ -862,6 +874,7 @@ mod tests {
             page: None,
             rect: None,
             visible: false,
+            validity_layer: false,
             signer: None,
             certificate: None,
             chain: Vec::new(),

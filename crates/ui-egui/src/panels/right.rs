@@ -28,6 +28,7 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
     let preparing = app.is_preparing();
     {
         let Some(doc) = app.session.get(id) else { return };
+        let trusted = app.session.trusted_certificates();
         let info = &doc.info;
         let view = &mut app.views[index];
         let prefs = &app.comment_prefs;
@@ -257,7 +258,7 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         }
                     }
                     RightPanel::Signatures => {
-                        sig_action = crate::sign_ui::panel(ui, &t, &doc.signatures, sig_expanded);
+                        sig_action = crate::sign_ui::panel(ui, &t, &doc.signatures, trusted, sig_expanded);
                     }
                     RightPanel::Accessibility => {
                         a11y_action = crate::a11y_ui::panel(ui, &t, a11y, id);
@@ -395,6 +396,7 @@ pub fn right_panel(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
         Some(crate::sign_ui::PanelAction::Validate) => app.run_command("sign.validate"),
         Some(crate::sign_ui::PanelAction::GoTo(p)) => app.views[index].go_to_page(p),
         Some(crate::sign_ui::PanelAction::Trust(c)) => app.trust_certificate(*c),
+        Some(crate::sign_ui::PanelAction::Untrust(c)) => app.untrust_certificate(&c),
         Some(crate::sign_ui::PanelAction::ViewCertificate(chain)) => {
             app.cert_viewer = Some(crate::sign_ui::CertViewer { chain, selected: 0, tab: crate::sign_ui::CertTab::Summary });
             app.dialog = Some(crate::Dialog::CertificateViewer);

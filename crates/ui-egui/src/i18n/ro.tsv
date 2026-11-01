@@ -144,8 +144,7 @@
 	Fill & Sign	Completare și semnare
 	Accessibility	Accesibilitate
 	Help…	Ajutor…
-	Check for updates…	Căutare actualizări…
-	About PdfCraft	Despre PdfCraft
+	About Leafy PDF	Despre Leafy PDF
 	Automatically	Automat
 	Never	Niciodată
 	Always	Întotdeauna
@@ -478,7 +477,6 @@
 	Documents and view	Documente și vizualizare
 	Done	Gata
 	Done adding text	Terminare adăugare text
-	Download	Descărcare
 	Downsample to	Reeșantionare la
 	Drag the selection to move it. Esc clears the selection.	Trageți selecția pentru a o muta. Esc golește selecția.
 	Drag to reorder	Trageți pentru a reordona
@@ -555,7 +553,7 @@
 	Files are combined from top to bottom. Leave Pages empty to take every page.	Fișierele se combină de sus în jos. Lăsați Pagini gol pentru a lua toate paginile.
 	Files are combined in the order shown. Drag them to change it.	Fișierele se combină în ordinea afișată. Trageți-le pentru a o schimba.
 	Files for {name}	Fișiere pentru {name}
-	Files you open in PdfCraft appear here. Drop a PDF anywhere to open it.	Fișierele pe care le deschideți în PdfCraft apar aici. Plasați un PDF oriunde pentru a-l deschide.
+	Files you open in Leafy PDF appear here. Drop a PDF anywhere to open it.	Fișierele pe care le deschideți în Leafy PDF apar aici. Plasați un PDF oriunde pentru a-l deschide.
 	Fill & Sign dates	Date Completare și semnare
 	Fill & Sign signature	Semnătură Completare și semnare
 	Fill Color:	Culoare umplere:
@@ -609,7 +607,6 @@
 	From {file}	Din {file}
 	From:	De la:
 	Front side only	Doar față
-	Get help, share feedback and follow development on Discord.	Primiți ajutor, trimiteți păreri și urmăriți dezvoltarea pe Discord.
 	Go to a page view	Salt la o vizualizare de pagină
 	Go to page {p}	Salt la pagina {p}
 	Go to the page	Salt la pagină
@@ -661,8 +658,6 @@
 	JavaScript Console	Consolă JavaScript
 	JavaScript is turned off (Preferences ▸ JavaScript).	JavaScript este dezactivat (Preferințe > JavaScript).
 	JavaScript, e.g. getField("total").value	JavaScript, de ex. getField("total").value
-	Join our Discord	Intrați pe Discord-ul nostru
-	Join the ArtCraft community	Alăturați-vă comunității ArtCraft
 	Justify	Aliniere stânga-dreapta
 	Keep source fonts	Păstrare fonturi sursă
 	Keep tool selected	Instrumentul rămâne selectat
@@ -853,7 +848,6 @@
 	Pages:	Pagini:
 	Pages: {k} of {n}	Pagini: {k} din {n}
 	Paper:	Hârtie:
-	Part of	Parte din
 	Password	Parolă
 	Password required	Este necesară parola
 	Password security	Securitate prin parolă
@@ -863,8 +857,8 @@
 	Pattern	Model
 	Patterns	Modele
 	Patterns (graphics objects)	Modele (obiecte grafice)
-	PdfCraft didn't shut down normally. These documents had changes that were autosaved:	PdfCraft nu s-a închis normal. Aceste documente aveau modificări salvate automat:
-	PdfCraft works offline. No telemetry, no account, and no cloud processing unless you add a provider.	PdfCraft funcționează offline. Fără telemetrie, fără cont și fără procesare în cloud, cu excepția cazului în care adăugați un furnizor.
+	Leafy PDF didn't shut down normally. These documents had changes that were autosaved:	Leafy PDF nu s-a închis normal. Aceste documente aveau modificări salvate automat:
+	Leafy PDF works offline. No telemetry, no account, and no cloud processing unless you add a provider.	Leafy PDF funcționează offline. Fără telemetrie, fără cont și fără procesare în cloud, cu excepția cazului în care adăugați un furnizor.
 	PdfCraft {v} is available.	Este disponibil PdfCraft {v}.
 	Percentage	Procent
 	Permissions password	Parolă de permisiuni
@@ -941,7 +935,7 @@
 	Remove {n} files	Eliminare {n} fișiere
 	Remove {n} pages	Eliminare {n} pagini
 	Reopen Closed Tab	Redeschidere filă închisă
-	Reopen the files that were open when PdfCraft last closed	Redeschide fișierele care erau deschise la ultima închidere a PdfCraft
+	Reopen the files that were open when Leafy PDF last closed	Redeschide fișierele care erau deschise la ultima închidere a Leafy PDF
 	Repair log	Jurnal de reparare
 	Repeat overlay text	Repetare text suprapus
 	Replace Image…	Înlocuire imagine…
@@ -1136,7 +1130,7 @@
 	Text alignment:	Aliniere text:
 	Text in images isn't found; recognise text (OCR) first.	Textul din imagini nu este găsit; rulați întâi recunoașterea textului (OCR).
 	Text is compared word by word; the differences are shown on the new file.	Textul se compară cuvânt cu cuvânt; diferențele sunt afișate pe fișierul nou.
-	Text recognition isn't installed: its model files are missing. Reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them.	Recunoașterea textului nu este instalată: lipsesc fișierele modelului. Reinstalați PdfCraft sau setați PDFCRAFT_MODELS la folderul care le conține.
+	Text recognition isn't installed: its model files are missing. Reinstall Leafy PDF, or set PDFCRAFT_MODELS to the folder that holds them.	Recunoașterea textului nu este instalată: lipsesc fișierele modelului. Reinstalați Leafy PDF sau setați PDFCRAFT_MODELS la folderul care le conține.
 	Text to find	Text de găsit
 	Text to insert	Text de inserat
 	Text used as a clipping path cannot be moved with this selection.	Textul folosit ca traseu de decupare nu poate fi mutat cu această selecție.
@@ -1151,9 +1145,9 @@
 	The document's security settings don't allow copying text and images	Setările de securitate ale documentului nu permit copierea textului și a imaginilor
 	The document's security settings don't allow this change	Setările de securitate ale documentului nu permit această modificare
 	The existing action will be preserved.	Acțiunea existentă va fi păstrată.
-	The fonts PdfCraft writes with can't draw “{c}” ({code}), so it shows as ? in every PDF viewer. The text is saved.	Fonturile cu care scrie PdfCraft nu pot desena „{c}” ({code}), așa că apare ca ? în orice vizualizator PDF. Textul se salvează.
-	The key is in the Windows certificate store, which may ask to allow PdfCraft to use it.	Cheia se află în depozitul de certificate Windows, care poate cere permisiunea ca PdfCraft să o folosească.
-	The key is in the macOS Keychain, which may ask to allow PdfCraft to use it.	Cheia se află în Keychain-ul macOS, care poate cere permisiunea ca PdfCraft să o folosească.
+	The fonts Leafy PDF writes with can't draw “{c}” ({code}), so it shows as ? in every PDF viewer. The text is saved.	Fonturile cu care scrie Leafy PDF nu pot desena „{c}” ({code}), așa că apare ca ? în orice vizualizator PDF. Textul se salvează.
+	The key is in the Windows certificate store, which may ask to allow Leafy PDF to use it.	Cheia se află în depozitul de certificate Windows, care poate cere permisiunea ca Leafy PDF să o folosească.
+	The key is in the macOS Keychain, which may ask to allow Leafy PDF to use it.	Cheia se află în Keychain-ul macOS, care poate cere permisiunea ca Leafy PDF să o folosească.
 	The newest {n} of {total} PDFs	Cele mai noi {n} din {total} PDF-uri
 	The password is only used to read the file; it isn't saved.	Parola este folosită doar pentru citirea fișierului; nu se salvează.
 	The printer driver's own settings for this print: paper tray, paper type, finishing and more.	Setările proprii ale driverului de imprimantă pentru această imprimare: tava de hârtie, tipul de hârtie, finisarea și altele.
@@ -1194,7 +1188,7 @@
 	This file was damaged and has been repaired. Saving keeps the repaired version.	Acest fișier era deteriorat și a fost reparat. Salvarea păstrează versiunea reparată.
 	This folder isn't available right now. It may have moved, or its drive or cloud sync is offline.	Acest folder nu este disponibil acum. Poate a fost mutat sau unitatea ori sincronizarea cloud este offline.
 	This form's scripts are turned off because one ran too long. Reopen the document to run them again.	Scripturile acestui formular sunt dezactivate pentru că unul a rulat prea mult. Redeschideți documentul pentru a le rula din nou.
-	This is a dynamic XFA form, which PdfCraft can't display yet. What you see is the file's placeholder page.	Acesta este un formular XFA dinamic, pe care PdfCraft nu îl poate afișa încă. Ce vedeți este pagina de rezervă a fișierului.
+	This is a dynamic XFA form, which Leafy PDF can't display yet. What you see is the file's placeholder page.	Acesta este un formular XFA dinamic, pe care Leafy PDF nu îl poate afișa încă. Ce vedeți este pagina de rezervă a fișierului.
 	This measurement needs at least {n} points.	Această măsurătoare are nevoie de cel puțin {n} puncte.
 	This page contains objects that cannot be selected together.	Această pagină conține obiecte care nu pot fi selectate împreună.
 	This page couldn't be displayed.\n{e}	Această pagină nu a putut fi afișată.\n{e}
@@ -1272,7 +1266,7 @@
 	Visible Rectangle	Dreptunghi vizibil
 	Visual	Vizual
 	Warnings	Avertismente
-	Welcome to PdfCraft	Bun venit în PdfCraft
+	Welcome to Leafy PDF	Bun venit în Leafy PDF
 	What word or phrase would you like to search for?	Ce cuvânt sau expresie doriți să căutați?
 	Whole words only	Doar cuvinte întregi
 	Width:	Lățime:
@@ -1348,7 +1342,6 @@
 	Archive documents	Arhivare documente
 	Area	Arie
 	Arrow	Săgeată
-	ArtCraft website	Site-ul ArtCraft
 	Ask about this document	Întrebări despre acest document
 	Attach a file	Atașare fișier
 	Attach file	Atașare fișier
@@ -1487,7 +1480,6 @@
 	Insert text	Inserare text
 	JavaScript	JavaScript
 	JavaScript console…	Consolă JavaScript…
-	Join the ArtCraft Discord	Intrați pe Discord-ul ArtCraft
 	Light gray	Gri deschis
 	Line	Linie
 	Link	Link
@@ -1518,8 +1510,6 @@
 	Page options	Opțiuni pagină
 	Page transitions	Tranziții pagini
 	Paste pages	Lipire pagini
-	PdfCraft on GitHub	PdfCraft pe GitHub
-	PdfCraft web page	Pagina web PdfCraft
 	Perimeter	Perimetru
 	Pin folder to Home…	Fixare folder în Acasă…
 	PostScript / EPS	PostScript / EPS
@@ -2190,7 +2180,7 @@ comment menu	Edit	Editare
 	Passed	Reușit
 	Password protection will be applied when you save	Protecția prin parolă se va aplica la salvare
 	Path	Traseu
-	PdfCraft is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.	PdfCraft desenează fără procesor grafic, așa că poate fi lent. Actualizarea driverului plăcii video poate ajuta.
+	Leafy PDF is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.	Leafy PDF desenează fără procesor grafic, așa că poate fi lent. Actualizarea driverului plăcii video poate ajuta.
 	People may need more time to respond. Check that nothing has a time limit.	Unele persoane pot avea nevoie de mai mult timp pentru a răspunde. Verificați ca nimic să nu aibă o limită de timp.
 	Phone Number	Număr de telefon
 	Phone Numbers	Numere de telefon
@@ -2346,7 +2336,7 @@ comment menu	Edit	Editare
 	The document's security settings don't allow filling in form fields	Setările de securitate ale documentului nu permit completarea câmpurilor de formular
 	The field properties could not be changed.	Proprietățile câmpului nu au putut fi modificate.
 	The field properties dialog is no longer open.	Dialogul de proprietăți ale câmpului nu mai este deschis.
-	The form asks to be submitted to {u}; PdfCraft doesn't send form data. Save the document to keep your entries.	Formularul cere să fie trimis la {u}; PdfCraft nu trimite date de formular. Salvați documentul pentru a păstra ce ați completat.
+	The form asks to be submitted to {u}; Leafy PDF doesn't send form data. Save the document to keep your entries.	Formularul cere să fie trimis la {u}; Leafy PDF nu trimite date de formular. Salvați documentul pentru a păstra ce ați completat.
 	The form asks viewers to make appearances (NeedAppearances)	Formularul cere vizualizatoarelor să creeze aspectele (NeedAppearances)
 	The linked PDF opened, but its named destination was not applied.	PDF-ul legat s-a deschis, dar destinația sa denumită nu a fost aplicată.
 	The linked PDF opened, but its page destination was out of range.	PDF-ul legat s-a deschis, dar destinația de pagină era în afara intervalului.
@@ -2433,19 +2423,19 @@ comment menu	Edit	Editare
 	{label} failed: {e}	{label} a eșuat: {e}
 	{name} has no action	{name} nu are nicio acțiune
 	{name} is too large for a word list (at most 1 MB).	{name} este prea mare pentru o listă de cuvinte (cel mult 1 MB).
-	{name} submits the form to {url}; PdfCraft doesn't send form data. Save the document to keep your entries.	{name} trimite formularul la {url}; PdfCraft nu trimite date de formular. Salvați documentul pentru a păstra ce ați completat.
+	{name} submits the form to {url}; Leafy PDF doesn't send form data. Save the document to keep your entries.	{name} trimite formularul la {url}; Leafy PDF nu trimite date de formular. Salvați documentul pentru a păstra ce ați completat.
 	{name}: choosing images arrives on the web with file pickers for images	{name}: alegerea imaginilor vine pe web odată cu selectoarele de fișiere pentru imagini
 	{name}: the {other} action isn't supported yet	{name}: acțiunea {other} nu este acceptată încă
-	{who} in this document tried to open an address PdfCraft won't open: {e}.	{who} din acest document a încercat să deschidă o adresă pe care PdfCraft nu o deschide: {e}.
-	{who} in this document tried to open an address PdfCraft won't open: {e}. Only web (http, https) and email (mailto) links open from documents.	{who} din acest document a încercat să deschidă o adresă pe care PdfCraft nu o deschide: {e}. Din documente se deschid doar linkuri web (http, https) și de e-mail (mailto).
+	{who} in this document tried to open an address Leafy PDF won't open: {e}.	{who} din acest document a încercat să deschidă o adresă pe care Leafy PDF nu o deschide: {e}.
+	{who} in this document tried to open an address Leafy PDF won't open: {e}. Only web (http, https) and email (mailto) links open from documents.	{who} din acest document a încercat să deschidă o adresă pe care Leafy PDF nu o deschide: {e}. Din documente se deschid doar linkuri web (http, https) și de e-mail (mailto).
 animation effects	Off	Dezactivate
 animation effects	On	Activate
 	View more	Afișare mai mult
 	View less	Afișare mai puțin
 	Only continue if you trust this document. An address can carry information from the document, such as what you typed into its form.	Continuați doar dacă aveți încredere în acest document. O adresă poate transmite informații din document, de exemplu ce ați scris în formularul lui.
 	Print single-sided. Keep the sheets in order, cut at the marks, then stack the piles left to right, top to bottom.	Imprimați pe o singură față. Păstrați foile în ordine, tăiați la semne, apoi stivuiți teancurile de la stânga la dreapta, de sus în jos.
-	Sign a sheet of white paper and take a photo of it in bright, even light (use the flash). Choose the photo or drop it here: PdfCraft finds the signature and removes the paper.	Semnați o foaie de hârtie albă și fotografiați-o în lumină puternică și uniformă (folosiți blițul). Alegeți fotografia sau plasați-o aici: PdfCraft găsește semnătura și elimină hârtia.
-	This field's font can't draw “{c}” ({code}), so PdfCraft shows ? in its place. The value is saved, and other PDF viewers redraw the field from it.	Fontul acestui câmp nu poate desena „{c}” ({code}), așa că PdfCraft afișează ? în locul lui. Valoarea se salvează, iar alte vizualizatoare PDF redesenează câmpul pe baza ei.
+	Sign a sheet of white paper and take a photo of it in bright, even light (use the flash). Choose the photo or drop it here: Leafy PDF finds the signature and removes the paper.	Semnați o foaie de hârtie albă și fotografiați-o în lumină puternică și uniformă (folosiți blițul). Alegeți fotografia sau plasați-o aici: Leafy PDF găsește semnătura și elimină hârtia.
+	This field's font can't draw “{c}” ({code}), so Leafy PDF shows ? in its place. The value is saved, and other PDF viewers redraw the field from it.	Fontul acestui câmp nu poate desena „{c}” ({code}), așa că Leafy PDF afișează ? în locul lui. Valoarea se salvează, iar alte vizualizatoare PDF redesenează câmpul pe baza ei.
 	{chars} can't be written into the PDF yet: Fill & Sign text is Western European only. Pick a numeric format such as dd.mm.yyyy.	{chars} nu pot fi scrise încă în PDF: textul Completare și semnare acceptă doar caractere vest-europene. Alegeți un format numeric, de exemplu zz.ll.aaaa.
 	January	Ianuarie
 	February	Februarie

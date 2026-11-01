@@ -151,6 +151,13 @@ impl Session {
                 pdfcraft_cos::Document::open_with_password(doc.bytes.clone(), doc.password.as_deref()).map_err(|e| EditError::Write(e.to_string()))?
             }
         };
+        // A signature's validity layer prints as the verdict on screen (a green tick once its signer
+        // is trusted), not as the "?" the signer baked in: Print to PDF and a printer both read this copy.
+        let verdict = |field: &str| doc.signatures.iter().find(|s| s.field == field).map(|s| s.status);
+        let caption = |field: &str| doc.signatures.iter().find(|s| s.field == field).and_then(|s| s.verified_caption());
+        if let Some(marked) = pdfcraft_sign::pdf::with_validity_marks(&cos, &verdict, &caption) {
+            cos = marked;
+        }
         // #3046: the layers print as they are shown. Once the Layers panel (or a set-layer
         // action) has changed one, the print copy's default configuration says which are on, so a
         // hidden layer stays off on paper too; untouched, the document's own configuration prints.

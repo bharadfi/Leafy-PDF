@@ -303,7 +303,7 @@ impl Session {
                 }
             }
         }
-        let display = display_bytes(editor.as_mut(), &bytes);
+        let display = display_bytes(editor.as_mut(), &bytes, &signatures);
         let renderer = RenderPool::new(display.clone(), render_threads(), display_config(&config));
         let (form, adopted) = editor
             .as_ref()
