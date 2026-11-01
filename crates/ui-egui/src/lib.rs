@@ -27,6 +27,7 @@ macro_rules! tl_ctx {
 }
 pub mod canvas;
 mod chrome;
+mod image_engine;
 pub use combine_grid::ThumbState as CombineThumb;
 pub use combine_ui::{Columns as CombineColumns, CombineView, Lock as CombineLock, SortKey};
 mod commands;
@@ -36,13 +37,14 @@ mod menus;
 pub mod marks {
     pub use crate::marks_ui::{MarksDraft, PageRange, Subset};
 }
+pub use content_ui::TextDraft;
 pub use create_ui::Clip;
 pub use link_ui::LinkDraft;
 pub use optimize_ui::{OptimizeDraft, OptimizeTab};
 pub use sign_ui::{DigitalIdEntry, SignDraft, SignGraphic, SignStep};
 mod bidi;
 mod dialogs;
-pub use edit_text_ui::CropMode;
+pub use edit_text_ui::{CropMode, DragTarget, ImageDrag, ImageHandle, ImageSelection};
 mod editing;
 mod home;
 mod panels;
@@ -62,7 +64,6 @@ pub use recovery::{AUTOSAVE_SECS, RecoveryMeta, RecoveryStore};
 /// The autosave intervals Preferences offers, in minutes.
 pub const AUTOSAVE_MINUTES: [u32; 5] = [1, 2, 5, 10, 15];
 /// How many recent files Preferences lets the list hold.
-pub const RECENT_LIMITS: [usize; 4] = [5, 12, 20, 30];
 use theme::{ThemeKind, ThemePreference};
 
 mod app;
@@ -72,6 +73,9 @@ mod platform;
 mod state;
 mod tools;
 mod workflows;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod os_clipboard;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use app::same_file;
@@ -135,7 +139,7 @@ use state::CopyPage;
 use state::OpenRequest;
 pub use state::{
     CustomDraft, Dialog, DuplicateDraft, LeftPanel, LinkOrigin, Mode, NumberDraft, OpenOutcome, PageClip, PagePropsDraft, PasswordPrompt,
-    PendingLink, PendingRemoteLink, PropsTab, QuickTool, RecentFile, RightPanel, UnlockPrompt,
+    PendingLink, PendingRemoteLink, PropsTab, QuickTool, RECENT_FILES_DEFAULT, RECENT_FILES_MAX, RecentFile, RightPanel, UnlockPrompt,
 };
 use state::{DocumentCopyJob, GridFile};
 pub use tools::bulk_fields;
@@ -234,6 +238,7 @@ struct PendingOpen {
     after_open: Option<pdfcraft_render::RemoteDestination>,
     recovered: Option<RecoveryMeta>,
     then: Option<&'static str>,
+    display_override: Option<(canvas::PageLayout, bool)>,
 }
 
 pub struct PdfCraftApp {
@@ -250,8 +255,6 @@ pub struct PdfCraftApp {
     /// How often unsaved changes are written to the recovery folder, in minutes (Preferences ▸ Documents
     /// and view). One of [`AUTOSAVE_MINUTES`]; a crash loses at most this much work.
     pub autosave_minutes: u32,
-    /// How many recently opened files are remembered (Preferences ▸ Documents and view): one of [`RECENT_LIMITS`].
-    pub recent_limit: usize,
     /// Preferences ▸ Trust root certificates from Windows: count the roots Windows trusts as trusted when
     /// validating signatures (off by default, as in Acrobat).
     pub trust_windows_roots: bool,
@@ -294,6 +297,8 @@ pub struct PdfCraftApp {
     /// The reading-colours preference (Preferences ▸ Reading colours): applied to every open
     /// document, and documents open with it (Acrobat's Replace Document Colors).
     pub reading_colors: pdfcraft_render::ReadingColors,
+    /// App-wide page decoration only; never part of a PDF edit or render request.
+    pub show_page_edge_shadows: bool,
     /// The Linux portal is enabled only by the native host, and starts on the first System choice.
     #[cfg(target_os = "linux")]
     desktop_theme: Option<pdfcraft_platform::desktop_theme::DesktopTheme>,
@@ -339,6 +344,8 @@ pub struct PdfCraftApp {
     /// tab coming to the front (Home, a document, Combine files) puts the view away.
     all_tools_tab: (Option<DocId>, bool),
     pub recent: Vec<RecentFile>,
+    /// How many recent files to keep, 0 for no list (Preferences ▸ Documents and view, #5572).
+    pub recent_limit: usize,
     /// Preferences: reopen the files that were open when PdfCraft last closed (#442).
     pub reopen_last_session: bool,
     /// Restore last view settings when reopening documents (Preferences ▸ Documents and view;
@@ -369,10 +376,19 @@ pub struct PdfCraftApp {
     pending_opens: Vec<PendingOpen>,
     #[cfg(not(target_arch = "wasm32"))]
     next_open_token: u64,
+    /// Explicit CLI layout waits for flagged launch opens, never targeting restored tabs.
+    #[cfg(not(target_arch = "wasm32"))]
+    launch_layout: Option<(canvas::PageLayout, bool)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    launch_display_target: Option<DocId>,
     #[cfg(all(test, not(target_arch = "wasm32")))]
     open_prepare_gate: Option<std::sync::Arc<open_worker::PrepareGate>>,
     /// Folders pinned to Home, and what they held when last listed.
     pub pinned: folders_ui::PinnedFolders,
+    /// Tools pinned to Home, in user-defined order.
+    pub pinned_tools: Vec<String>,
+    /// Search query for the Pin a tool selection dialog.
+    pub pin_tool_search: String,
     pub toast: Option<(String, f64)>,
     /// The form script message the toast shows now, if it shows one: drawn with its title and
     /// icon (#4293).
@@ -540,8 +556,6 @@ pub struct PdfCraftApp {
     pub system_clipboard: bool,
     /// What ⌘V reads instead of the system clipboard (tests).
     pub clipboard_override: Option<create_ui::Clip>,
-    /// V is down as a plain key press (see [`Self::paste_key_released`]).
-    v_pressed: bool,
     /// Attach file: the file to attach instead of asking (tests, automation).
     pub attach_override: Option<(String, Vec<u8>)>,
     /// Duplicate Field: which field and onto which pages.

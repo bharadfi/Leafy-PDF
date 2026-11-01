@@ -1160,26 +1160,25 @@ fn default_workspace_mode_persists_and_tolerates_invalid_settings() {
 }
 
 #[test]
-fn autosave_interval_and_recent_limit_are_saved_and_bad_values_are_ignored() {
+fn autosave_interval_is_saved_and_bad_values_are_ignored() {
     let mut app = PdfCraftApp::new();
     app.set_option("language", "en").unwrap();
-    assert_eq!((app.autosave_minutes, app.recent_limit), (1, 12), "today's behaviour is the default");
+    assert_eq!(app.autosave_minutes, 1, "today's behaviour is the default");
     app.autosave_minutes = 5;
-    app.recent_limit = 20;
     let mut restored = PdfCraftApp::new();
     restored.set_option("language", "en").unwrap();
     restored.restore(&app.persist());
-    assert_eq!((restored.autosave_minutes, restored.recent_limit), (5, 20));
+    assert_eq!(restored.autosave_minutes, 5);
     for json in [
-        r#"{"autosave_minutes": 0, "recent_limit": 0}"#,
-        r#"{"autosave_minutes": 7, "recent_limit": 13}"#,
-        r#"{"autosave_minutes": "x", "recent_limit": -1}"#,
-        r#"{"autosave_minutes": 99999999999, "recent_limit": 99999999999}"#,
+        r#"{"autosave_minutes": 0}"#,
+        r#"{"autosave_minutes": 7}"#,
+        r#"{"autosave_minutes": "x"}"#,
+        r#"{"autosave_minutes": 99999999999}"#,
     ] {
         let mut other = PdfCraftApp::new();
         other.set_option("language", "en").unwrap();
         other.restore(json);
-        assert_eq!((other.autosave_minutes, other.recent_limit), (1, 12), "{json}");
+        assert_eq!(other.autosave_minutes, 1, "{json}");
     }
 }
 
