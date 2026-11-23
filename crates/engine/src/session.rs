@@ -37,6 +37,10 @@ pub struct Session {
     utc_offset: Option<fn() -> i64>,
     /// Certificates trusted for signing (Acrobat: Trusted Certificates).
     pub(crate) trust: Arc<TrustStore>,
+    /// The certificates the user chose to trust (what Preferences and the Signatures panel list and save).
+    pub(crate) user_certs: Vec<pdfcraft_sign::Certificate>,
+    /// The roots Windows trusts, while Preferences asks for them. Never saved; `trust` holds both lists.
+    pub(crate) os_roots: Vec<pdfcraft_sign::Certificate>,
     /// The words signature status layers are drawn with, in the interface language.
     pub(crate) captions: Arc<StatusCaptions>,
     /// Preferences ▸ JavaScript ▸ Enable Acrobat JavaScript, inverted (on by default).

@@ -168,20 +168,20 @@ impl RecoveryStore {
     }
 
     /// `Recovery` in the portable data folder in portable mode ([`crate::portable`]), otherwise
-    /// the platform's per-user data folder: `~/Library/Application Support/PdfCraft/Recovery`
-    /// (macOS), `%LOCALAPPDATA%\PdfCraft\Recovery` (Windows), or
-    /// `$XDG_DATA_HOME/pdfcraft/recovery` / `~/.local/share/pdfcraft/recovery` (others).
+    /// the platform's per-user data folder: `~/Library/Application Support/LeafyPdf/Recovery`
+    /// (macOS), `%LOCALAPPDATA%\LeafyPdf\Recovery` (Windows), or
+    /// `$XDG_DATA_HOME/leafypdf/recovery` / `~/.local/share/leafypdf/recovery` (others).
     pub fn default_dir() -> Option<PathBuf> {
         if let Some(dir) = crate::portable::data_dir() {
             return Some(dir.join("Recovery"));
         }
         let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
         if cfg!(target_os = "macos") {
-            env("HOME").map(|h| h.join("Library/Application Support/PdfCraft/Recovery"))
+            env("HOME").map(|h| h.join("Library/Application Support/LeafyPdf/Recovery"))
         } else if cfg!(windows) {
-            env("LOCALAPPDATA").map(|d| d.join("PdfCraft").join("Recovery"))
+            env("LOCALAPPDATA").map(|d| d.join("LeafyPdf").join("Recovery"))
         } else {
-            env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share"))).map(|d| d.join("pdfcraft/recovery"))
+            env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share"))).map(|d| d.join("leafypdf/recovery"))
         }
     }
 
@@ -192,7 +192,7 @@ impl RecoveryStore {
 
 /// The OCR Verify screen's per-language user dictionary folder, next to the recovery store:
 /// the portable data folder's `Dictionary` in portable mode ([`crate::portable`]), otherwise
-/// `…/PdfCraft/Dictionary` in the platform's per-user data folder. `None` where files are not
+/// `…/LeafyPdf/Dictionary` in the platform's per-user data folder. `None` where files are not
 /// kept (the web build).
 pub fn default_dictionary_dir() -> Option<PathBuf> {
     if let Some(dir) = crate::portable::data_dir() {
@@ -200,9 +200,9 @@ pub fn default_dictionary_dir() -> Option<PathBuf> {
     }
     let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
     if cfg!(target_os = "macos") {
-        env("HOME").map(|h| h.join("Library/Application Support/PdfCraft/Dictionary"))
+        env("HOME").map(|h| h.join("Library/Application Support/LeafyPdf/Dictionary"))
     } else if cfg!(windows) {
-        env("LOCALAPPDATA").map(|d| d.join("PdfCraft").join("Dictionary"))
+        env("LOCALAPPDATA").map(|d| d.join("LeafyPdf").join("Dictionary"))
     } else {
         env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share"))).map(|d| d.join("pdfcraft/dictionary"))
     }
@@ -389,23 +389,24 @@ impl PdfCraftApp {
         if self.recovery.is_none() {
             return;
         }
+        let interval = AUTOSAVE_SECS * f64::from(self.autosave_minutes.max(1));
         // The first tick starts the interval, as the old zero clock did: it does not snapshot
         // immediately just because no deadline had been recorded yet.
         let Some(last) = self.last_autosave else {
             self.last_autosave = Some(now);
             if self.session.has_pending_autosave() {
-                ctx.request_repaint_after(std::time::Duration::from_secs_f64(AUTOSAVE_SECS));
+                ctx.request_repaint_after(std::time::Duration::from_secs_f64(interval));
             }
             return;
         };
-        if now.duration_since(last).as_secs_f64() >= AUTOSAVE_SECS {
+        if now.duration_since(last).as_secs_f64() >= interval {
             self.last_autosave = Some(now);
             self.autosave_now();
         }
         // An idle native window has no input-driven frames. Wake it at the existing
         // autosave deadline, without keeping clean or already-snapshotted documents awake.
         if self.session.has_pending_autosave() {
-            let next = self.last_autosave.unwrap_or(now) + std::time::Duration::from_secs_f64(AUTOSAVE_SECS);
+            let next = self.last_autosave.unwrap_or(now) + std::time::Duration::from_secs_f64(interval);
             ctx.request_repaint_after(next.saturating_duration_since(now));
         }
     }

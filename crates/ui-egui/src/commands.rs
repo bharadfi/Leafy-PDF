@@ -229,11 +229,6 @@ impl PdfCraftApp {
                     self.notify_tr("Security will be removed when you save");
                 }
             }
-            link if pdfcraft_engine::links::for_command(link).is_some() => {
-                if let Some(l) = pdfcraft_engine::links::for_command(link) {
-                    self.open_url(l.url);
-                }
-            }
             "app.preferences" => self.dialog = Some(Dialog::Preferences),
             "protect.remove_hidden" => self.open_remove_hidden(),
             "print.dialog" => self.open_print(),
@@ -257,11 +252,11 @@ impl PdfCraftApp {
             "create.multiple" => self.create_multiple_dialog(),
             "create.multiple_separate" => self.create_multiple_separate_dialog(),
             "create.images" => self.create_from_images_dialog(),
+            "create.scanner" => self.create_from_scanner(),
             "create.clipboard" => self.create_from_clipboard(),
             "optimize.reduce" => self.reduce_file_size(),
             "help.shortcuts" => self.dialog = Some(Dialog::Shortcuts),
             "help.about" => self.dialog = Some(Dialog::About),
-            "help.check_updates" => self.check_for_updates(),
             _ => return None,
         }
         Some(true)
@@ -777,6 +772,10 @@ impl PdfCraftApp {
             "a11y.alt_text" => self.start_alt_text(),
             "a11y.autotag_fields" => self.autotag_form_fields(),
             "a11y.tags" => self.choose_right_panel(Some(RightPanel::Tags)),
+            "a11y.read_page" => self.read_aloud(false),
+            "a11y.read_to_end" => self.read_aloud(true),
+            "a11y.read_pause" => self.pause_reading(),
+            "a11y.read_stop" => self.stop_reading(),
             "a11y.reading_options" => self.dialog = Some(Dialog::Properties(crate::PropsTab::Advanced)),
             "redact.mark" => {
                 self.quick_tool = crate::QuickTool::Redact;

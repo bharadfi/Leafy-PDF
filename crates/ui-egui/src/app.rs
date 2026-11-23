@@ -44,7 +44,7 @@ impl PdfCraftApp {
         let mark = if dirty { " •" } else { "" };
         let titled = |name: Option<String>| {
             name.or_else(|| self.combine_showing().then(|| tl!("Combine files").to_owned()))
-                .map_or_else(|| "PdfCraft".to_owned(), |name| format!("{name}{mark} — PdfCraft"))
+                .map_or_else(|| "Leafy PDF".to_owned(), |name| format!("{name}{mark} — Leafy PDF"))
         };
         let title = titled(front.and_then(|i| crate::canvas::tab_label(self, i)));
         // The web page's title is what an embedding host reads to tell which file opened, so it
@@ -77,6 +77,8 @@ impl PdfCraftApp {
             active: None,
             mode: Mode::AllTools,
             default_mode: Mode::AllTools,
+            autosave_minutes: 1,
+            trust_windows_roots: false,
             view_defaults: Default::default(),
             units: Default::default(),
             blank_paper: crate::paper::Paper::system(),
@@ -132,7 +134,6 @@ impl PdfCraftApp {
             fill_text_border_shape: pdfcraft_engine::BorderShape::Rectangle,
             fill_text_default: fill_sign::TextBorder::NONE,
             dialog: None,
-            updates: updates::Updates::default(),
             printer_source: None,
             options_source: None,
             default_paper_source: None,
@@ -154,7 +155,6 @@ impl PdfCraftApp {
             last_session: Default::default(),
             quit_session: None,
             reload_changed_files: true,
-            update_check_at_start: true,
             show_secured_notice: true,
             text_links: true,
             always_default_view: false,
@@ -327,7 +327,6 @@ impl PdfCraftApp {
             bookmark_rename: None,
             bookmark_clipboard: None,
             last_opened_url: None,
-            community_card_closed: false,
             pending_link: None,
             pending_full_screen: None,
             pending_window: None,
@@ -339,6 +338,8 @@ impl PdfCraftApp {
             unmarked_page: Default::default(),
             export_draft: Default::default(),
             export_status: None,
+            speech: Default::default(),
+            scanner: Default::default(),
             signature: None,
             initials: None,
             signature_draft: Default::default(),
@@ -445,7 +446,7 @@ impl PdfCraftApp {
         // Full screen draws the page alone: not the palette, nor the OCR Verify screen it was
         // entered over. Dialogs and prompts show there too.
         let shown = !(self.full_screen && self.active.is_some());
-        self.modal_open() || self.pending_full_screen.is_some() || self.updates.prompt_open() || (self.palette_open || self.ocr_verify.open) && shown
+        self.modal_open() || self.pending_full_screen.is_some() || (self.palette_open || self.ocr_verify.open) && shown
     }
 
     /// A dialog or prompt is open over the window: the keyboard is its own, and nothing may act
@@ -461,7 +462,6 @@ impl PdfCraftApp {
             || self.unlock_prompt.is_some()
             || self.pending_link.is_some()
             || self.pending_remote_link.is_some()
-            || self.updates.open
     }
 
     /// Show `msg` in the toast now, in place of whatever it showed. Script messages still waiting
@@ -564,11 +564,6 @@ impl eframe::App for PdfCraftApp {
             self.window_state.keep(storage, minimized);
         }
         storage.set_string("pdfcraft", self.persist());
-    }
-
-    /// Starts an update that waits for the exit. On macOS the process ends before the app is dropped.
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
-        self.updates.exiting();
     }
 
     /// Each frame's work before drawing: opens, operating-system and control-channel requests,
@@ -749,7 +744,6 @@ impl PdfCraftApp {
                 report(dirty);
             }
         }
-        self.poll_updates();
         self.poll_print();
         // Shortcuts deferred last frame: the text field has taken that frame's typing since.
         let deferred = std::mem::take(&mut self.deferred_commands);
@@ -788,6 +782,8 @@ impl PdfCraftApp {
             }
         }
         self.poll_export();
+        self.poll_speech();
+        self.poll_scanner();
         self.auto_ocr_scanned_page();
         self.poll_ocr();
         self.poll_optimize();

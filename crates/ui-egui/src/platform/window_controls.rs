@@ -102,13 +102,91 @@ pub fn buttons(ui: &mut egui::Ui, buttons: &[Button]) {
             paint(ui.painter(), rect, button, maximized, &t, &response);
         }
         if response.clicked() {
-            let command = match button {
-                Button::Minimize => egui::ViewportCommand::Minimized(true),
-                Button::Maximize => egui::ViewportCommand::Maximized(!maximized),
-                // The same path as the desktop's close: unsaved documents still ask first.
-                Button::Close => egui::ViewportCommand::Close,
-            };
-            ui.ctx().send_viewport_cmd(command);
+            press(ui.ctx(), button, maximized);
+        }
+    }
+}
+
+/// What a window button does when clicked.
+fn press(ctx: &egui::Context, button: Button, maximized: bool) {
+    let command = match button {
+        Button::Minimize => egui::ViewportCommand::Minimized(true),
+        Button::Maximize => egui::ViewportCommand::Maximized(!maximized),
+        // The same path as the desktop's close: unsaved documents still ask first.
+        Button::Close => egui::ViewportCommand::Close,
+    };
+    ctx.send_viewport_cmd(command);
+}
+
+/// How wide Windows draws a caption button.
+pub const CAPTION_WIDTH: f32 = 46.0;
+
+/// Whether the window buttons are Windows' flat caption buttons, flush with the window's right
+/// edge and as tall as the strip, instead of Adwaita's round ones.
+pub fn flat() -> bool {
+    cfg!(target_os = "windows")
+}
+
+/// The width the flat caption buttons take in the strip: no gaps, and none to the rest of it.
+pub fn flat_width(buttons: &[Button]) -> f32 {
+    buttons.len() as f32 * CAPTION_WIDTH
+}
+
+/// Draw the flat caption buttons, `height` tall, in reading order inside a horizontal layout
+/// with no spacing between them.
+pub fn flat_buttons(ui: &mut egui::Ui, buttons: &[Button], height: f32) {
+    let t = Tokens::get(ui.ctx());
+    let maximized = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
+    for &button in buttons {
+        let label = match button {
+            Button::Minimize => tl!("Minimize"),
+            Button::Maximize if maximized => tl!("Restore"),
+            Button::Maximize => tl!("Maximize"),
+            Button::Close => tl!("Close"),
+        };
+        let (rect, response) = ui.allocate_exact_size(Vec2::new(CAPTION_WIDTH, height), Sense::click());
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
+        if ui.is_rect_visible(rect) {
+            paint_flat(ui.painter(), rect, button, maximized, &t, &response);
+        }
+        if response.clicked() {
+            press(ui.ctx(), button, maximized);
+        }
+    }
+}
+
+/// Windows' look: a flat wash on hover and press, red under the close button, and 10-point
+/// glyphs drawn with hairlines.
+fn paint_flat(painter: &egui::Painter, rect: Rect, button: Button, maximized: bool, t: &Tokens, response: &egui::Response) {
+    let down = response.is_pointer_button_down_on();
+    let over = response.hovered() || down;
+    let danger = button == Button::Close && over;
+    if danger {
+        painter.rect_filled(rect, 0.0, if down { Color32::from_rgb(241, 112, 122) } else { Color32::from_rgb(232, 17, 35) });
+    } else if over {
+        painter.rect_filled(rect, 0.0, t.text.gamma_multiply(if down { 0.18 } else { 0.10 }));
+    }
+    let stroke = Stroke::new(1.0, if danger { Color32::WHITE } else { t.text });
+    let c = rect.center();
+    let at = |x: f32, y: f32| Pos2::new((c.x - 5.0 + x).round() + 0.5, (c.y - 5.0 + y).round() + 0.5);
+    match button {
+        Button::Minimize => {
+            painter.line_segment([at(0.0, 5.0), at(10.0, 5.0)], stroke);
+        }
+        Button::Maximize if maximized => {
+            // Restore: a smaller window in front of another.
+            painter.rect_stroke(Rect::from_two_pos(at(0.0, 2.0), at(8.0, 10.0)), 0.0, stroke, egui::StrokeKind::Middle);
+            painter.line_segment([at(2.0, 2.0), at(2.0, 0.0)], stroke);
+            painter.line_segment([at(2.0, 0.0), at(10.0, 0.0)], stroke);
+            painter.line_segment([at(10.0, 0.0), at(10.0, 8.0)], stroke);
+            painter.line_segment([at(10.0, 8.0), at(8.0, 8.0)], stroke);
+        }
+        Button::Maximize => {
+            painter.rect_stroke(Rect::from_two_pos(at(0.0, 0.0), at(10.0, 10.0)), 0.0, stroke, egui::StrokeKind::Middle);
+        }
+        Button::Close => {
+            painter.line_segment([at(0.0, 0.0), at(10.0, 10.0)], stroke);
+            painter.line_segment([at(10.0, 0.0), at(0.0, 10.0)], stroke);
         }
     }
 }

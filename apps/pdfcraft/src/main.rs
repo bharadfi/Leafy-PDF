@@ -46,19 +46,20 @@ mod settings;
 mod single_instance;
 mod startup;
 mod text_scale;
+mod thumbnail;
 #[cfg(test)]
 #[path = "windows_manifest.rs"]
 mod windows_manifest;
 
 /// Freedesktop app id: the `.desktop` file name and the hicolor icon name.
-const APP_ID: &str = "ai.storyteller.pdfcraft";
+const APP_ID: &str = "app.leafypdf.LeafyPdf";
 
 /// The app icon (assets/app-icon/README.md). macOS gets the version on Apple's icon grid, with a
 /// transparent margin; Windows and Linux get the full-bleed tile.
 #[cfg(target_os = "macos")]
-const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/pdfcraft-1024.png");
+const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/leafypdf-1024.png");
 #[cfg(not(target_os = "macos"))]
-const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.pdfcraft.png");
+const APP_ICON_PNG: &[u8] = include_bytes!("../../../assets/app-icon/leafypdf-256.png");
 
 /// What `-h` / `--help` prints (#4076): a hint, not the full option list (that is this file's
 /// doc comment and the README). Scripts want `pdfcraft-cli`, which never opens a window.
@@ -69,10 +70,12 @@ Opens the files in the PdfCraft desktop app.
 
 Options:
   --two-paged                 open command-line PDFs in noncontinuous two-page view
-  --new-window                open a window of its own instead of passing the files to a running PdfCraft
+  --new-window                open a window of its own instead of passing the files to a running Leafy PDF
   --create-images [images…]   put the images in one PDF and ask for the page DPI
   --combine files…            add the files to the Combine files tab, of a running PdfCraft if there is one
   --control <file>            enable the UI control channel (pdfcraft-cli ui --control <file> …)
+  --thumbnail <pdf> <out> <size>
+                              write the PDF's first page as a picture for Explorer's thumbnail handler, and exit
   --page N, --zoom 150, --layout continuous, --theme dark, …
                               view settings applied once the files are open
   -h, --help                  print this and exit
@@ -88,14 +91,11 @@ fn print_and_exit(text: &str) -> eframe::Result {
     Ok(())
 }
 
-/// The app was called PrintCraft before; settings saved then are under this key.
-const LEGACY_STORAGE_KEY: &str = "printcraft";
-
 /// The preferences folder (`app.ron`, docs/development.md). In portable mode
-/// it is `PdfCraftData` beside the executable (#157). XDG desktops use the configuration base;
-/// other platforms retain eframe's PdfCraft folder. Logs and recovery stay in the data folder.
+/// it is `LeafyPdfData` beside the executable (#157). XDG desktops use the configuration base;
+/// other platforms retain eframe's LeafyPdf folder. Logs and recovery stay in the data folder.
 fn settings_dir() -> Option<std::path::PathBuf> {
-    let legacy = eframe::storage_dir("PdfCraft");
+    let legacy = eframe::storage_dir("LeafyPdf");
     match settings::directory(
         cfg!(all(unix, not(target_os = "macos"))),
         pdfcraft_ui_egui::portable::data_dir(),
@@ -111,38 +111,9 @@ fn settings_dir() -> Option<std::path::PathBuf> {
     }
 }
 
-/// Move the settings and crash-recovery folders of the app's former name, PrintCraft, to the new
-/// name once, so an upgrade keeps recent files, preferences and unsaved work. Best effort: a
-/// folder is left alone when the new one already exists or the move fails. A portable copy leaves
-/// the per-user folders alone.
-fn migrate_legacy_folders() {
-    if pdfcraft_ui_egui::portable::data_dir().is_some() {
-        return;
-    }
-    let mut moves = vec![(eframe::storage_dir("PrintCraft"), eframe::storage_dir("PdfCraft"))];
-    // Recovery lives in the settings folder except on Windows, where it is under %LOCALAPPDATA%.
-    if cfg!(windows) {
-        let local = std::env::var_os("LOCALAPPDATA").filter(|v| !v.is_empty()).map(std::path::PathBuf::from);
-        moves.push((local.as_ref().map(|d| d.join("PrintCraft")), local.map(|d| d.join("PdfCraft"))));
-    }
-    for (old, new) in moves {
-        let (Some(old), Some(new)) = (old, new) else { continue };
-        if !old.is_dir() || new.exists() {
-            continue;
-        }
-        if let Some(parent) = new.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        match std::fs::rename(&old, &new) {
-            Ok(()) => log::info!("moved {} to {}", old.display(), new.display()),
-            Err(e) => log::warn!("moving {} to {}: {e}", old.display(), new.display()),
-        }
-    }
-}
-
 /// Desktop launchers (GNOME Files, KDE Dolphin…) only recognise an app as the default handler for a
-/// mime type if its `Exec` takes URIs (`%u`/`%U`), not just paths (`%F`); the packaged `.desktop`
-/// file uses `%U` accordingly (packaging/linux/ai.storyteller.pdfcraft.desktop). Decode a local
+/// mime type if its `Exec` takes URIs (`%u`/`%U`), not just paths (`%F`); a packaged `.desktop`
+/// file would use `%U` accordingly. Decode a local
 /// `file://` argument (`file:///path` or `file://localhost/path`) to a plain path here so the rest
 /// of the app, which only ever opens paths, is unaffected. Other schemes (`http://`, `mailto:`…),
 /// URIs naming another host, and plain paths pass through untouched.
@@ -201,18 +172,19 @@ fn rejoin_split_paths(args: Vec<String>, exists: impl Fn(&str) -> bool) -> Vec<S
 }
 
 fn main() -> eframe::Result {
+    // Explorer's thumbnail handler (crates/thumbs) asks for one picture and no window: before the logger,
+    // the panic hook and the single-instance hand-off, none of which belong to that call.
+    if std::env::args().nth(1).as_deref() == Some("--thumbnail") {
+        let args: Vec<String> = std::env::args().skip(2).collect();
+        std::process::exit(if thumbnail::run(&args) == std::process::ExitCode::SUCCESS { 0 } else { 1 });
+    }
     // Before anything uses aws-lc: an `OPENSSL_ia32cap` naming a CPU feature this processor lacks
-    // would stop it, so PdfCraft runs again without it (#2916, `crypto_env`).
+    // would stop it, so Leafy PDF runs again without it (#2916, `crypto_env`).
     if let Some(code) = pdfcraft_platform::crypto_env::run_without_cpu_override() {
         std::process::exit(code);
     }
     // aws-lc detects the CPU's features here, where it used to before `main` (`init_crypto`).
     pdfcraft_engine::sign::init_crypto();
-    // Windows: the update helper is a copy of this program started with `--finish-update`.
-    #[cfg(windows)]
-    if let Some(result) = craft_update::self_update::finish(&pdfcraft_ui_egui::UPDATE_APP, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
-        std::process::exit(i32::from(result.is_err()));
-    }
     // First, so the panic hook and every start-up warning are recorded (`logging`).
     let logger = logging::install();
     if let Some(value) = pdfcraft_platform::crypto_env::dropped() {
@@ -247,17 +219,17 @@ fn main() -> eframe::Result {
     let may_hand_off = startup.may_hand_off();
     let startup::Arguments { files, options, control_file, create_images, combine, two_paged, .. } = startup;
     let integrated = cfg!(target_os = "macos");
-    // GNOME on Wayland leaves the window frame to the app (src/decorations.rs).
-    let window_controls = if cfg!(any(target_os = "macos", target_os = "windows")) { None } else { decorations::app_drawn() };
-    migrate_legacy_folders();
+    // Windows and GNOME on Wayland leave the window frame to the app (src/decorations.rs); macOS
+    // has its own integrated title bar.
+    let window_controls = if cfg!(target_os = "macos") { None } else { decorations::app_drawn() };
     // The log file stays in the data folder; opened after the arguments (so `--version` leaves
-    // no file behind) and after the PrintCraft migration (which a fresh folder would block).
+    // no file behind).
     // Records logged until now are written to it first.
     if let (Some(logger), Some(dir)) =
-        (logger, pdfcraft_ui_egui::portable::data_dir().map(std::path::Path::to_path_buf).or_else(|| eframe::storage_dir("PdfCraft")))
+        (logger, pdfcraft_ui_egui::portable::data_dir().map(std::path::Path::to_path_buf).or_else(|| eframe::storage_dir("LeafyPdf")))
     {
         match logger.attach_dir(&dir.join("logs")) {
-            Ok(path) => log::info!("PdfCraft {}, log file {}", pdfcraft_engine::build_info::version(), path.display()),
+            Ok(path) => log::info!("Leafy PDF {}, log file {}", pdfcraft_engine::build_info::version(), path.display()),
             // Standard error only by now (`attach_dir` gave up on the file); unlike `eprintln!`, never panics.
             Err(e) => log::warn!("no log file: {e}"),
         }
@@ -284,7 +256,7 @@ fn main() -> eframe::Result {
     let started = Rc::new(Cell::new(false));
     let first = if choice == RendererChoice::Gl { eframe::Renderer::Glow } else { eframe::Renderer::Wgpu };
     let result = eframe::run_native(
-        "PdfCraft",
+        "Leafy PDF",
         native_options(launch.integrated, launch.window_controls.is_some(), first),
         app_creator(
             launch.clone(),
@@ -302,7 +274,7 @@ fn main() -> eframe::Result {
             // usually still works there, so that's better than quitting.
             log::error!("the GPU renderer (wgpu) didn't start: {e}. Starting with OpenGL instead; set PDFCRAFT_RENDERER=gl to skip wgpu.");
             eframe::run_native(
-                "PdfCraft",
+                "Leafy PDF",
                 native_options(launch.integrated, launch.window_controls.is_some(), eframe::Renderer::Glow),
                 app_creator(
                     launch,
@@ -345,11 +317,11 @@ fn retry_with_gl(choice: RendererChoice, app_started: bool) -> bool {
 /// The window and renderer settings for one run.
 fn native_options(integrated: bool, app_frame: bool, renderer: eframe::Renderer) -> eframe::NativeOptions {
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("PdfCraft")
+        .with_title("Leafy PDF")
         .with_inner_size([1440.0, 920.0])
         .with_min_inner_size(pdfcraft_ui_egui::MIN_WINDOW_SIZE)
         .with_drag_and_drop(true)
-        // Wayland app id: matches packaging/linux/ai.storyteller.pdfcraft.desktop.
+        // Wayland app id.
         .with_app_id(APP_ID);
     // eframe replaces ICON_BIG with a system-sized icon on its first active frame.
     // An explicitly empty icon disables that setter (None selects eframe's default).
@@ -468,7 +440,7 @@ fn app_creator<'a>(
         app.enable_desktop_theme();
         // The system's reopen-windows choice (macOS) starts the preference; a saved choice replaces it.
         app.reopen_last_session = reopen::system_default();
-        if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string(LEGACY_STORAGE_KEY))) {
+        if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft")) {
             app.restore(&json);
         }
         app.window_state = pdfcraft_ui_egui::window_state::WindowState::started_with(cc.storage);
@@ -484,7 +456,6 @@ fn app_creator<'a>(
             }
             app.motion.source = Some(motion::source());
         }
-        app.set_startup_update_check(true);
         app.printer_source = Some(pdfcraft_ui_egui::system_printers());
         app.two_sided_source = Some(pdfcraft_ui_egui::system_two_sided());
         app.os_key_store_ids = cfg!(any(target_os = "macos", target_os = "windows"));
@@ -561,7 +532,7 @@ fn app_creator<'a>(
 /// `unsafe` calls.
 fn notify_software_renderer(app: &mut PdfCraftApp, device_type: eframe::wgpu::DeviceType) {
     if device_type == eframe::wgpu::DeviceType::Cpu {
-        app.notify_tr("PdfCraft is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.");
+        app.notify_tr("Leafy PDF is drawing without a graphics processor, so it may be slow. Updating the graphics driver may help.");
     }
 }
 

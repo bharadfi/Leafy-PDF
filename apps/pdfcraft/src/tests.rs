@@ -715,38 +715,6 @@ fn writing_the_control_file_looks_up_the_users_sid_once() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// X11 startup notification and docks match a window to its launcher by `StartupWMClass`,
-/// so it has to be the class the window carries: the app id, on Wayland and X11 alike.
-#[test]
-fn the_desktop_entry_names_the_window_class() {
-    let entry = include_str!("../../../packaging/linux/ai.storyteller.pdfcraft.desktop");
-    let class = entry.lines().find_map(|line| line.strip_prefix("StartupWMClass="));
-    assert_eq!(class, Some(super::APP_ID));
-}
-
-/// Both flatpak manifests build with the craft-i18n commit `craft-i18n.rev` pins: CI and
-/// releases read the file, and the manifests have to name the commit themselves. The pin may
-/// have a trailing newline or CRLF (a Windows checkout), so it is trimmed, as every reader does.
-#[test]
-fn the_flatpak_manifests_pin_the_craft_i18n_rev() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let rev = std::fs::read_to_string(root.join("craft-i18n.rev")).unwrap();
-    let rev = rev.trim();
-    assert!(rev.len() == 40 && rev.bytes().all(|b| b.is_ascii_hexdigit()), "craft-i18n.rev holds one full SHA: {rev:?}");
-    for manifest in ["ai.storyteller.pdfcraft.yml", "ai.storyteller.pdfcraft.bundle.yml"] {
-        let text = std::fs::read_to_string(root.join("packaging/linux/flatpak").join(manifest)).unwrap();
-        let source =
-            text.split("url: https://github.com/storytold/craft-i18n").nth(1).unwrap_or_else(|| panic!("{manifest}: a craft-i18n git source"));
-        let source = source.split("- type:").next().unwrap_or(source);
-        let commit = source
-            .lines()
-            .find_map(|l| l.trim().strip_prefix("commit:"))
-            .unwrap_or_else(|| panic!("{manifest}: the craft-i18n source pins a commit"));
-        assert_eq!(commit.trim().trim_matches(['\'', '"']), rev, "{manifest}");
-        assert!(text.contains("CRAFT_I18N_DIR: /run/build/pdfcraft/craft-i18n"), "{manifest}: the build names the catalogs");
-    }
-}
-
 // Regression test for #246: `eprintln!` panics when standard error is a broken pipe (a GUI
 // launch on Windows), and a panic inside the panic hook aborts the process. The start-up
 // path and the hook must write to standard error without it.

@@ -9,15 +9,6 @@
 // The settings object in `persist` is one `json!` literal past the default limit of 128.
 #![recursion_limit = "256"]
 
-/// PdfCraft as craft-update knows it, with its 128 px icon and accent colour: the update
-/// prompt shows both, and an AppImage's menu entry gets the icon.
-#[cfg(not(target_arch = "wasm32"))]
-pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
-    icon_png: Some(include_bytes!("../../../assets/app-icon/hicolor/128x128/apps/ai.storyteller.pdfcraft.png")),
-    accent: Some([0xb7, 0x02, 0x28]),
-    ..craft_update::suite::PDFCRAFT
-};
-
 use crate::control::Host as _;
 
 /// Translate an English UI string into the current language (see [`i18n`]).
@@ -84,6 +75,9 @@ pub const MIN_WINDOW_SIZE: [f32; 2] = [480.0, 520.0];
 pub use editing::{CloseRequest, SaveTarget};
 pub use files::{ExtractDraft, FilePurpose, FileRequest, RotateDraft, SplitDraft, SplitMode, SplitPlan};
 pub use recovery::{AUTOSAVE_SECS, RecoveryMeta, RecoveryStore, default_dictionary_dir};
+
+/// The autosave intervals Preferences offers, in minutes.
+pub const AUTOSAVE_MINUTES: [u32; 5] = [1, 2, 5, 10, 15];
 use theme::{ThemeKind, ThemePreference};
 pub use workflows::ocr_verify::{OcrVerify, Phase};
 
@@ -163,7 +157,6 @@ pub use platform::portable;
 #[cfg(not(target_arch = "wasm32"))]
 use platform::system_fonts;
 pub use platform::ui_scale;
-pub use platform::updates;
 pub use platform::window_controls;
 #[cfg(test)]
 use state::CopyPage;
@@ -326,6 +319,12 @@ pub struct PdfCraftApp {
     pub mode: Mode,
     /// Workspace used for newly opened PDFs; independent of PDF Initial View metadata.
     pub default_mode: Mode,
+    /// How often unsaved changes are written to the recovery folder, in minutes (Preferences ▸ Documents
+    /// and view). One of [`AUTOSAVE_MINUTES`]; a crash loses at most this much work.
+    pub autosave_minutes: u32,
+    /// Preferences ▸ Trust root certificates from Windows: count the roots Windows trusts as trusted when
+    /// validating signatures (off by default, as in Acrobat).
+    pub trust_windows_roots: bool,
     /// Page display and zoom for newly opened PDFs that don't ask for their own (Preferences ▸
     /// Documents and view). Continuous scrolling at fit width by default, which never snaps
     /// between pages.
@@ -440,8 +439,6 @@ pub struct PdfCraftApp {
     /// Current Properties Default last took from typed text (none at first).
     pub fill_text_default: fill_sign::TextBorder,
     pub dialog: Option<Dialog>,
-    /// How to ask for the latest release (the desktop app sets it; see `updates`).
-    pub(crate) updates: updates::Updates,
     /// Lists the Print dialog's printers in the background (the desktop app sets it; see
     /// [`PrinterSource`]).
     pub printer_source: Option<PrinterSource>,
@@ -485,9 +482,6 @@ pub struct PdfCraftApp {
     quit_session: Option<last_session::LastSession>,
     /// Preferences: reload a document when its file changes on disk (#431).
     pub reload_changed_files: bool,
-    /// Preferences: ask for a newer release when the desktop app starts (#5737). Off, the app
-    /// asks only from Help ▸ Check for updates.
-    pub update_check_at_start: bool,
     /// Preferences: tell the user, above the pages, that a document is secured (its security
     /// settings restrict changes). Off only hides that notice (#4035); kept in the settings.
     pub show_secured_notice: bool,
@@ -827,6 +821,10 @@ pub struct PdfCraftApp {
     pub export_draft: export_ui::ExportDraft,
     /// A running export's progress.
     export_status: Option<export_ui::ExportStatus>,
+    /// What is being read aloud (View ▸ Read this page aloud).
+    speech: platform::speech::Voice,
+    /// The scan window File ▸ Create ▸ PDF from a scanner opened, while it is open.
+    scanner: platform::scanner::Scanner,
     /// The saved Fill & Sign signature and initials (drawn or typed).
     pub signature: Option<fill_sign::SavedSig>,
     pub initials: Option<fill_sign::SavedSig>,
@@ -861,8 +859,6 @@ pub struct PdfCraftApp {
     pub replace_draft: Option<files::ReplaceDraft>,
     /// The last web link the app asked the system to open (tests and automation).
     pub last_opened_url: Option<String>,
-    /// The home screen's community card was closed; it comes back next launch (not remembered).
-    pub community_card_closed: bool,
     /// A document asked to open this address; the user hasn't answered yet (#90, #91).
     pub pending_link: Option<PendingLink>,
     /// A document just opened asks to be shown in Full Screen mode (`/PageMode /FullScreen`):

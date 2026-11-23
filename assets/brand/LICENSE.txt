@@ -1,0 +1,15 @@
+Leafy PDF logo (leafy-logo.svg, leafy-icon-small.svg and leafy-mark.svg in this directory, and every file
+derived from them: ../app-icon/leafypdf.ico, ../app-icon/leafypdf-256.png and ../app-icon/leafypdf-1024.png).
+
+Original artwork provided for this project by the project owner (the file pdf_app_logo_alt.svg). It was
+generated with AI assistance (Claude, by Anthropic) at the owner's request. No third-party artwork, trademark
+or font was knowingly copied, and the wordmark text of the original file is not part of these files.
+
+To the extent any copyright subsists in it, it is licensed like the rest of Leafy PDF, under either of
+
+  * Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+  * MIT license (https://opensource.org/licenses/MIT)
+
+at your option.
+
+Regenerate the derived files with make-icons.ps1.

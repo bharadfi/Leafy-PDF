@@ -6120,6 +6120,52 @@ fn chamfered_signature_borders_survive_trust_exports_printing_and_save() {
     }
 }
 
+/// The decoded content of object `number` in `bytes`.
+fn object_content(bytes: &Arc<Vec<u8>>, number: u32) -> Vec<u8> {
+    let doc = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+    match &*doc.get(pdfcraft_cos::ObjRef::new(number, 0)) {
+        pdfcraft_cos::Object::Stream(s) => s.decoded().unwrap(),
+        other => panic!("object {number} is not a stream: {other:?}"),
+    }
+}
+
+/// Whether any stream in `bytes` decodes to something containing `needle`.
+fn any_stream_has(bytes: &Arc<Vec<u8>>, needle: &[u8]) -> bool {
+    let doc = pdfcraft_cos::Document::open(bytes.clone()).unwrap();
+    (1..400).any(|n| match &*doc.get(pdfcraft_cos::ObjRef::new(n, 0)) {
+        pdfcraft_cos::Object::Stream(s) => s.decoded().is_ok_and(|c| bytes_has(&c, needle)),
+        _ => false,
+    })
+}
+
+#[test]
+fn windows_roots_count_as_trusted_without_joining_the_users_own_list() {
+    let p12 = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../sign/tests/data/ec-p256.p12")).unwrap();
+    let id = sign::pkcs12::open(&p12, "test").unwrap();
+    let anchor = id.chain.first().cloned().unwrap_or_else(|| id.certificate.clone());
+    let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
+    let signed = Arc::new(sign_prepared(&mut doc, &id, "D:20261002120000+01'00'"));
+    let mut s = Session::new().with_clock(|| 1_800_000_000);
+    let vid = s.open("roots.pdf", None, signed, None).unwrap();
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Unknown, "nobody is trusted yet");
+
+    // The roots Windows trusts make the signature valid ...
+    s.set_os_trusted_roots(vec![anchor.clone()]);
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Valid);
+    // ... and are kept apart from what the user chose: the user's list, which is saved, stays empty.
+    assert!(s.trusted_certificates().is_empty());
+    assert_eq!(s.os_trusted_roots().len(), 1);
+    // The user's own list works beside them, and a root the user also trusts is counted once.
+    s.set_trusted_certificates(vec![anchor.clone()]);
+    assert_eq!((s.trusted_certificates().len(), s.os_trusted_roots().len()), (1, 1));
+    assert_eq!(s.trust.certs.len(), 1);
+    // Turning the roots off while the user trusts the signer keeps it valid; removing both makes it unknown again.
+    s.set_os_trusted_roots(Vec::new());
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Valid);
+    s.set_trusted_certificates(Vec::new());
+    assert_eq!(s.get(vid).unwrap().signatures[0].status, SignatureStatus::Unknown);
+}
+
 #[test]
 fn mixed_signature_caption_details_survive_trust_exports_printing_and_save() {
     let mut doc = pdfcraft_cos::Document::open(Arc::new(layered_signable_fixture())).unwrap();
@@ -7950,8 +7996,6 @@ fn comparing_two_versions_of_a_document() {
     assert!(marks[0].contents.as_deref().unwrap().starts_with("Replaced: \"Monday.\""));
 }
 
-/// Built-in and custom actions run their steps on a file (with JavaScript on), report each
-/// step's progress, and fail cleanly on a file that is not a PDF.
 #[test]
 fn actions_run_their_steps_on_files() {
     let s = Session::new();

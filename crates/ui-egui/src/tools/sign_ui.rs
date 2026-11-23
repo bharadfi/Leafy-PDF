@@ -218,8 +218,8 @@ pub(crate) fn page_input(cx: PageToolContext<'_>, free: bool, view: &mut DocView
     }
 }
 
-/// Where new digital IDs are saved: next to the recovery folder (`…/PdfCraft/Digital IDs`, or
-/// `PdfCraftData/Digital IDs` in portable mode).
+/// Where new digital IDs are saved: next to the recovery folder (`…/LeafyPdf/Digital IDs`, or
+/// `LeafyPdfData/Digital IDs` in portable mode).
 fn id_dir() -> Option<PathBuf> {
     crate::recovery::RecoveryStore::default_dir().and_then(|d| d.parent().map(|p| p.join("Digital IDs")))
 }
@@ -654,6 +654,18 @@ impl PdfCraftApp {
         self.apply_trusted_certificates(certs);
     }
 
+    /// Take `cert` out of the trusted certificates (the reverse of [`Self::trust_certificate`]),
+    /// revalidating: signatures that relied on it go back to an unknown signer. A certificate
+    /// that is not in the list changes nothing.
+    pub fn untrust_certificate(&mut self, cert: &Certificate) {
+        let mut certs = self.session.trusted_certificates().to_vec();
+        let before = certs.len();
+        certs.retain(|c| c.raw != cert.raw);
+        if certs.len() != before {
+            self.apply_trusted_certificates(certs);
+        }
+    }
+
     /// Replace the trust store and redraw from the rebuilt display copy. One helper
     /// so no caller can revalidate without invalidating: trust changes verdicts,
     /// verdicts choose what the display copy shows, and the old rasters would
@@ -687,6 +699,35 @@ impl PdfCraftApp {
         for view in self.views.iter_mut().filter(|v| drawing.contains(&v.id)) {
             view.invalidate_content();
         }
+    }
+
+    /// Preferences ▸ Trust root certificates from Windows: load the roots Windows trusts (or drop them) and
+    /// revalidate every signature. They are held apart from the user's own trusted certificates.
+    pub fn apply_windows_roots(&mut self) {
+        let roots = if self.trust_windows_roots { self.windows_roots() } else { Vec::new() };
+        self.session.set_os_trusted_roots(roots);
+        for view in &mut self.views {
+            view.invalidate_content();
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn windows_roots(&mut self) -> Vec<Certificate> {
+        match pdfcraft_engine::sign::windows::trusted_roots() {
+            Ok(roots) => roots,
+            Err(e) => {
+                self.trust_windows_roots = false;
+                self.notify_error(e);
+                Vec::new()
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn windows_roots(&mut self) -> Vec<Certificate> {
+        self.trust_windows_roots = false;
+        self.notify_tr("Windows' trusted roots are only available on Windows");
+        Vec::new()
     }
 
     /// A file name without its PDF extension, for snapshot tab names.

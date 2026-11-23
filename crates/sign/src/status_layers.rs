@@ -204,12 +204,14 @@ pub fn show_status_layers(doc: &mut Document, signatures: &mut [SignatureInfo], 
     for sig in signatures.iter_mut().filter(|s| drawable(s)) {
         let Some(widgets) = fields.widgets(&sig.field) else { continue };
         let mut shown = false;
+        // A certification signature that verifies says who certified the document, as Acrobat does.
+        let look = Look { status: sig.status, certified: sig.verified_caption().filter(|text| first_non_win_ansi(text).is_none()) };
         for (r, widget) in widgets {
             if !crate::pdf::widget_shown(doc, widget) {
                 continue;
             }
             let Some(r) = r.filter(|r| !fields.shared(*r)) else { continue };
-            if draw(doc, r, widget, sig.status, &mut copies).is_some() {
+            if draw(doc, r, widget, &look, &mut copies).is_some() {
                 shown = true;
                 changed = true;
             }
@@ -250,12 +252,20 @@ fn drawable(sig: &SignatureInfo) -> bool {
 /// widgets that share an appearance share its copy, and the display copy grows by at most one copy
 /// per state of what the file holds. Keyed by object number, since references that differ only in
 /// generation reach the same object.
+/// What one copy shows: the state, and for a verified certification signature the line that
+/// replaces the signer's caption. Two copies of one appearance differ by this and nothing else.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct Look {
+    status: Status,
+    certified: Option<String>,
+}
+
 struct Copies<'a> {
     face: Face<'a>,
     /// Original `/N` and state → its copy, or `None` when it cannot be drawn.
-    n: HashMap<(u32, Status), Option<ObjRef>>,
+    n: HashMap<(u32, Look), Option<ObjRef>>,
     /// Original layer form and state → its copy.
-    forms: HashMap<(u32, Status), ObjRef>,
+    forms: HashMap<(u32, Look), ObjRef>,
     /// Layer form → whether its content draws `n1` and `n3`, read once per call however many
     /// appearances share it.
     drawing: HashMap<u32, bool>,
@@ -263,13 +273,13 @@ struct Copies<'a> {
 
 /// Point one widget at its appearance's copy for `status`, drawing that copy first if this call
 /// has not drawn it yet.
-fn draw(doc: &mut Document, widget_ref: ObjRef, widget: &Dict, status: Status, copies: &mut Copies) -> Option<()> {
+fn draw(doc: &mut Document, widget_ref: ObjRef, widget: &Dict, look: &Look, copies: &mut Copies) -> Option<()> {
     let n = appearance(doc, widget)?;
-    let copy = match copies.n.get(&(n.num, status)) {
+    let copy = match copies.n.get(&(n.num, look.clone())) {
         Some(copy) => *copy,
         None => {
-            let copy = recognise(doc, n, &mut copies.drawing).and_then(|layout| regenerate(doc, layout, status, copies));
-            copies.n.insert((n.num, status), copy);
+            let copy = recognise(doc, n, &mut copies.drawing).and_then(|layout| regenerate(doc, layout, look, copies));
+            copies.n.insert((n.num, look.clone()), copy);
             copy
         }
     }?;
@@ -460,12 +470,12 @@ fn layer(doc: &Document, o: Option<&Object>) -> Option<Layer> {
 /// Draw `status` into a copy of a recognised appearance: new `n1`, `n3` and `n4`, a layer form
 /// pointing at them (shared by every `/N` that draws the same layer form), and an `/N` pointing at
 /// that. Returns the new `/N`; nothing is written for an appearance whose icons cannot be drawn.
-fn regenerate(doc: &mut Document, layout: Layout, status: Status, copies: &mut Copies) -> Option<ObjRef> {
-    let form = match copies.forms.get(&(layout.form_ref.num, status)) {
+fn regenerate(doc: &mut Document, layout: Layout, look: &Look, copies: &mut Copies) -> Option<ObjRef> {
+    let form = match copies.forms.get(&(layout.form_ref.num, look.clone())) {
         Some(form) => *form,
         None => {
-            let form = regenerate_form(doc, &layout, status, &mut copies.face)?;
-            copies.forms.insert((layout.form_ref.num, status), form);
+            let form = regenerate_form(doc, &layout, look, &mut copies.face)?;
+            copies.forms.insert((layout.form_ref.num, look.clone()), form);
             form
         }
     };
@@ -477,7 +487,8 @@ fn regenerate(doc: &mut Document, layout: Layout, status: Status, copies: &mut C
 }
 
 /// The layer form's copy for `status`, with its status layers redrawn.
-fn regenerate_form(doc: &mut Document, layout: &Layout, status: Status, face: &mut Face) -> Option<ObjRef> {
+fn regenerate_form(doc: &mut Document, layout: &Layout, look: &Look, face: &mut Face) -> Option<ObjRef> {
+    let status = look.status;
     let icon = |path: &str, layer: &Layer| icon_ops(path, status_rgb(status), &layer.bbox);
     let (n1, n3) = match status {
         Status::Valid => (icon(CIRCLE_CHECK, &layout.n1)?, Vec::new()),
@@ -485,12 +496,13 @@ fn regenerate_form(doc: &mut Document, layout: &Layout, status: Status, face: &m
         Status::Invalid => (Vec::new(), icon(CIRCLE_X, &layout.n3)?),
     };
     let mut layers = layout.form_xobjects.clone();
-    let n1 = Stream::from_raw(layer_dict(doc, &layout.n1, Dict::new()), n1);
-    let n3 = Stream::from_raw(layer_dict(doc, &layout.n3, Dict::new()), n3);
+    let n1 = Stream::from_raw(layer_dict(doc, &layout.n1, badge_resources()), n1);
+    let n3 = Stream::from_raw(layer_dict(doc, &layout.n3, badge_resources()), n3);
     layers.set(b"n1".to_vec(), doc.add(n1));
     layers.set(b"n3".to_vec(), doc.add(n3));
     if let Some(n4) = &layout.n4 {
-        let (resources, ops) = caption(doc, face, status, &n4.bbox);
+        let certified = look.certified.as_deref().and_then(|text| certified_caption(text, &n4.bbox));
+        let (resources, ops) = certified.unwrap_or_else(|| caption(doc, face, status, &n4.bbox));
         let n4 = Stream::from_raw(layer_dict(doc, n4, resources), ops);
         layers.set(b"n4".to_vec(), doc.add(n4));
     }
@@ -528,6 +540,29 @@ fn set_xobjects(doc: &Document, dict: &mut Dict, xobjects: Dict) {
     dict.set(b"Resources".to_vec(), resources);
 }
 
+/// The graphics state the badge's tint is drawn with, and the opacity it holds.
+const BADGE_STATE: &str = "LfBadge";
+const BADGE_ALPHA: f64 = 0.28;
+/// A disc of radius 11.5 about the icon's centre, in the icons' 24-unit space.
+const BADGE_DISC: &str = "23.5 12 m 23.5 18.351 18.351 23.5 12 23.5 c 5.649 23.5 0.5 18.351 0.5 12 c 0.5 5.649 5.649 0.5 12 0.5 c 18.351 0.5 23.5 5.649 23.5 12 c h";
+
+/// One colour channel as a PDF number.
+fn channel_text(v: u8) -> String {
+    format!("{:.3}", f64::from(v) / 255.0)
+}
+
+/// The resources of a regenerated `n1` or `n3`: the translucent graphics state of the badge's tint.
+fn badge_resources() -> Dict {
+    let mut state = Dict::new();
+    state.set(b"Type".to_vec(), Object::name("ExtGState"));
+    state.set(b"ca".to_vec(), num(BADGE_ALPHA));
+    let mut states = Dict::new();
+    states.set(BADGE_STATE.as_bytes().to_vec(), state);
+    let mut resources = Dict::new();
+    resources.set(b"ExtGState".to_vec(), states);
+    resources
+}
+
 /// A Lucide icon stroked in `rgb`, as large as fits in `bbox` and centred in it. The path is in
 /// Lucide's 24-unit, y-down space, so the `cm` scales it and flips it about the top edge.
 fn icon_ops(path: &str, rgb: [u8; 3], bbox: &[f64; 4]) -> Option<Vec<u8>> {
@@ -548,6 +583,9 @@ fn icon_ops(path: &str, rgb: [u8; 3], bbox: &[f64; 4]) -> Option<Vec<u8>> {
         Op::new("j", vec![num(1.0)]),
         Op::new("cm", vec![num(scale), num(0.0), num(0.0), num(-scale), num(x), num(y)]),
     ]);
+    // A round, translucent tint behind the icon (Leafy PDF): the signer's text under it stays readable.
+    let tint = format!("q /{BADGE_STATE} gs {} {} {} rg {BADGE_DISC} f Q\n", channel_text(r), channel_text(g), channel_text(b));
+    out.extend_from_slice(tint.as_bytes());
     out.extend_from_slice(path.as_bytes());
     out.extend_from_slice(b"\nQ\n");
     Some(out)
@@ -591,6 +629,42 @@ fn caption(doc: &mut Document, face: &mut Face, status: Status, bbox: &[f64; 4])
     }
     ops.push(Op::new("EMC", vec![]));
     (resources, serialize_ops(&ops))
+}
+
+/// "Document certified by NAME <email>." on two lines (the email on the second), in the standard
+/// Helvetica and shrunk to fit `bbox`. `None` when it would be too small to read, so the usual
+/// caption is drawn instead. The caller has made sure WinAnsi encodes `text`.
+fn certified_caption(text: &str, bbox: &[f64; 4]) -> Option<(Dict, Vec<u8>)> {
+    let (first, second) = match text.split_once(" <") {
+        Some((name, email)) => (name.to_owned(), Some(format!("<{email}"))),
+        None => (text.to_owned(), None),
+    };
+    let widest = helvetica_width(&first, 1.0).max(second.as_deref().map_or(0.0, |s| helvetica_width(s, 1.0)));
+    let (w, h) = (bbox[2] - bbox[0], bbox[3] - bbox[1]);
+    let lines = if second.is_some() { 2.0 } else { 1.0 };
+    let size = (h * 0.62 / lines).min(w * 0.94 / widest);
+    if !size.is_finite() || size < 1.0 {
+        return None;
+    }
+    let mut font = Dict::new();
+    font.set(b"Type".to_vec(), Object::name("Font"));
+    font.set(b"Subtype".to_vec(), Object::name("Type1"));
+    font.set(b"BaseFont".to_vec(), Object::name("Helvetica"));
+    font.set(b"Encoding".to_vec(), Object::name("WinAnsiEncoding"));
+    let resources = caption_resources(Object::Dict(font));
+    let x = caption_x(bbox, 0.0, false);
+    let total = size * (0.72 + 1.15 * (lines - 1.0));
+    let bottom = bbox[1] + ((h - total) / 2.0).max(0.0);
+    let mut ops = vec![Op::new("BT", vec![]), Op::new("Tf", vec![Object::name(CAPTION_FONT), num(size)]), Op::new("g", vec![num(0.0)])];
+    let rows = std::iter::once(first).chain(second);
+    let rows: Vec<String> = rows.collect();
+    for (i, row) in rows.iter().rev().enumerate() {
+        let y = bottom + 1.15 * size * i as f64;
+        ops.push(Op::new("Tm", vec![num(1.0), num(0.0), num(0.0), num(1.0), num(x), num(y)]));
+        ops.push(Op::new("Tj", vec![string(win_ansi(row))]));
+    }
+    ops.push(Op::new("ET", vec![]));
+    Some((resources, serialize_ops(&ops)))
 }
 
 /// `words` in the standard Helvetica. The caller has made sure WinAnsi encodes them.

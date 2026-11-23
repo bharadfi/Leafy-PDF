@@ -33,8 +33,6 @@ craft-cms = { git = "https://github.com/storytold/craft-libs", version = "0.1.0"
 craft-zip = { git = "https://github.com/storytold/craft-libs", version = "0.1.0", rev = "e2dc681a3" }
 # Whether a path stored in a document may be opened (GoToR link targets).
 craft-docpath = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "e2dc681a3" }
-# craft-update: app-specific pretend versions apply to startup and manual checks.
-craft-update = { git = "https://github.com/storytold/craft-libs", version = "=0.1.0", rev = "e2dc681a3", features = ["egui"] }
 craft-pdf = { git = "https://github.com/storytold/craft-libs", version = "0.1.0", rev = "9eb02be84f21898e247daeb2af5827c9fe85a3a0", features = ["cos", "crypt", "filters", "fonts"] }
 # The writers the Word and RTF exports map onto (storytold/craft-libs#793). craft-rtf, craft-wordmodel and
 # craft-docx move together: craft_rtf::doc::export takes its own revision's Document.
@@ -99,7 +97,7 @@ lopdf = "0.45"
 # zlib-rs: miniz_oxide took about 1.7 µs for every fixed-Huffman block, empty or not
 # (`pdfcraft_filters::FLATE_READ_WORK`). Other dependencies still build flate2's default
 # miniz_oxide backend; flate2 prefers zlib-rs when both are built, as the Windows build already did
-# through craft-update. `flate::tests::a_copy_from_before_the_start_is_damage` shows which runs.
+# through other dependencies. `flate::tests::a_copy_from_before_the_start_is_damage` shows which runs.
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 weezl = "0.2"
 # CCITT Group 4 encoding (pdfcraft-filters); already in the tree through tiff.

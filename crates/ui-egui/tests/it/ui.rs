@@ -34,7 +34,7 @@ fn harness(setup: impl FnOnce(&mut PdfCraftApp) + 'static) -> Harness<'static, P
 #[test]
 fn home_shows_welcome_and_tools() {
     let h = harness(|_| {});
-    h.get_by_label_contains("Welcome to PdfCraft");
+    h.get_by_label_contains("Welcome to Leafy PDF");
     assert!(h.query_all_by_label("Organize pages").count() >= 2, "tool list + home card");
     h.get_by_label("Open file");
 }
@@ -111,7 +111,7 @@ fn home_removes_one_recent_file_or_clears_them_all() {
     h.get_by_label("Clear Recent Files").click();
     h.run_steps(2);
     assert!(h.state().recent.is_empty(), "Clear empties the list");
-    h.get_by_label_contains("Files you open in PdfCraft appear here");
+    h.get_by_label_contains("Files you open in Leafy PDF appear here");
     assert!(h.query_by_label("Clear Recent Files").is_none(), "and goes away with nothing left to clear");
 }
 
@@ -238,7 +238,7 @@ fn another_tab_coming_forward_puts_the_expanded_all_tools_away() {
     h.state_mut().set_option("home", "").unwrap();
     h.run_steps(3);
     assert!(!h.state().all_tools_full);
-    h.get_by_label_contains("Welcome to PdfCraft");
+    h.get_by_label_contains("Welcome to Leafy PDF");
     // Another document's tab.
     let mut h = harness(|app| {
         app.open_bytes("one.pdf", None, FIXTURE.to_vec()).expect("fixture opens");
@@ -258,7 +258,7 @@ fn going_home_with_no_document_puts_the_expanded_all_tools_away() {
     h.state_mut().set_option("home", "").unwrap();
     h.run_steps(3);
     assert!(!h.state().all_tools_full);
-    h.get_by_label_contains("Welcome to PdfCraft");
+    h.get_by_label_contains("Welcome to Leafy PDF");
 }
 
 #[test]
@@ -695,8 +695,8 @@ fn tabs_shrink_to_fit_then_arrows_step_through_them_and_open_stays_in_sight() {
         }
     });
     let open = h.get_by_label("Open").rect();
-    let discord = h.get_by_label("Discord").rect();
-    assert!(open.right() <= discord.left(), "Open {open:?} must not run under Discord {discord:?}");
+    let shortcuts = h.get_by_label("Keyboard shortcuts").rect();
+    assert!(open.right() <= shortcuts.left(), "Open {open:?} must not run under the shortcuts button {shortcuts:?}");
     let mut previous_right = f32::MIN;
     for i in 0..5 {
         let tab = h.get_by_label(&name(i)).rect();
@@ -720,15 +720,15 @@ fn tabs_shrink_to_fit_then_arrows_step_through_them_and_open_stays_in_sight() {
     assert_eq!(enabled(&h, "Scroll tabs right"), Some(true), "and then there is more to the right");
     let open = h.get_by_label("Open").rect();
     let right = h.get_by_label("Scroll tabs right").rect();
-    assert!(right.right() <= open.left() + 0.5 && open.right() <= h.get_by_label("Discord").rect().left());
-    // Twenty: Open stays in sight left of Discord.
+    assert!(right.right() <= open.left() + 0.5 && open.right() <= h.get_by_label("Keyboard shortcuts").rect().left());
+    // Twenty: Open stays in sight left of the shortcuts button.
     for i in 0..13 {
         h.state_mut().open_bytes(&format!("more-{i:02}.pdf"), None, FIXTURE.to_vec()).unwrap();
     }
     h.run_steps(4);
     let open = h.get_by_label("Open").rect();
-    let discord = h.get_by_label("Discord").rect();
-    assert!(open.left() > 0.0 && open.right() <= discord.left(), "Open {open:?} stays in sight left of Discord {discord:?}");
+    let shortcuts = h.get_by_label("Keyboard shortcuts").rect();
+    assert!(open.left() > 0.0 && open.right() <= shortcuts.left(), "Open {open:?} stays in sight left of the shortcuts button {shortcuts:?}");
 }
 
 /// macOS (#789): with the integrated title bar, the strip is the 28 pt band AppKit centres the
@@ -741,7 +741,7 @@ fn the_integrated_title_bar_is_the_traffic_light_band() {
         app.open_bytes("band.pdf", None, FIXTURE.to_vec()).unwrap();
     });
     let band = 28.0;
-    for label in ["Home", "band.pdf", "Open", "Discord", "Keyboard shortcuts"] {
+    for label in ["Home", "band.pdf", "Open", "Keyboard shortcuts"] {
         let r = h.get_by_label(label).rect();
         assert!(r.top() >= 0.0 && r.bottom() <= band, "{label}: {r:?} inside the {band} pt title bar");
         assert!(r.height() >= 24.0, "{label}: {r:?} stays clickable");
@@ -1515,6 +1515,95 @@ fn default_workspace_mode_persists_and_tolerates_invalid_settings() {
 }
 
 #[test]
+fn autosave_interval_is_saved_and_bad_values_are_ignored() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert_eq!(app.autosave_minutes, 1, "today's behaviour is the default");
+    app.autosave_minutes = 5;
+    let mut restored = PdfCraftApp::new();
+    restored.set_option("language", "en").unwrap();
+    restored.restore(&app.persist());
+    assert_eq!(restored.autosave_minutes, 5);
+    for json in [
+        r#"{"autosave_minutes": 0}"#,
+        r#"{"autosave_minutes": 7}"#,
+        r#"{"autosave_minutes": "x"}"#,
+        r#"{"autosave_minutes": 99999999999}"#,
+    ] {
+        let mut other = PdfCraftApp::new();
+        other.set_option("language", "en").unwrap();
+        other.restore(json);
+        assert_eq!(other.autosave_minutes, 1, "{json}");
+    }
+}
+
+#[test]
+fn scanned_pages_gather_in_one_pdf_before_it_is_created() {
+    fn page(shade: u8) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, 2, 2);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[shade; 16]).unwrap();
+        writer.finish().unwrap();
+        out
+    }
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert!(app.image_import.is_none());
+    app.take_scanned_page(page(10));
+    let draft = app.image_import.as_ref().expect("the first scan starts the PDF");
+    assert_eq!((draft.images.len(), draft.from_scanner), (1, true));
+    assert_eq!(draft.images[0].0, "Scan 1.png");
+    assert_eq!(app.dialog, Some(pdfcraft_ui_egui::Dialog::CreateImages));
+    // Scanning another page adds to the same PDF instead of starting a second one.
+    app.take_scanned_page(page(200));
+    app.take_scanned_page(page(90));
+    let draft = app.image_import.as_ref().unwrap();
+    assert_eq!(draft.images.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(), ["Scan 1.png", "Scan 2.png", "Scan 3.png"]);
+    assert!(draft.images.iter().all(|(_, bytes)| bytes.starts_with(b"\x89PNG")));
+    // Creating it makes one document with a page for each scan.
+    app.finish_image_import();
+    let id = app.active_ids().map(|(_, id)| id).expect("the new PDF is open");
+    assert_eq!(app.session.get(id).unwrap().info.pages.len(), 3);
+}
+
+#[test]
+fn trusting_windows_roots_is_off_by_default_and_remembered_when_turned_on() {
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    assert!(!app.trust_windows_roots, "off by default, as in Acrobat");
+    assert!(app.session.os_trusted_roots().is_empty());
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&app.persist()).unwrap()["trust_windows_roots"], false);
+    // Restoring "off", a missing value or a wrong type changes nothing.
+    for json in [r#"{"trust_windows_roots": false}"#, "{}", r#"{"trust_windows_roots": "yes"}"#, r#"{"trust_windows_roots": 1}"#] {
+        let mut other = PdfCraftApp::new();
+        other.set_option("language", "en").unwrap();
+        other.restore(json);
+        assert!(!other.trust_windows_roots && other.session.os_trusted_roots().is_empty(), "{json}");
+    }
+    // Turned on, it loads the roots Windows trusts (and is saved); on another system it turns itself off again.
+    let mut app = PdfCraftApp::new();
+    app.set_option("language", "en").unwrap();
+    app.trust_windows_roots = true;
+    app.apply_windows_roots();
+    if cfg!(target_os = "windows") {
+        assert!(app.trust_windows_roots && app.session.os_trusted_roots().len() >= 5);
+        assert!(app.session.trusted_certificates().is_empty(), "the user's own list is untouched");
+        let mut restored = PdfCraftApp::new();
+        restored.set_option("language", "en").unwrap();
+        restored.restore(&app.persist());
+        assert!(restored.trust_windows_roots && restored.session.os_trusted_roots().len() >= 5);
+        app.trust_windows_roots = false;
+        app.apply_windows_roots();
+        assert!(app.session.os_trusted_roots().is_empty());
+    } else {
+        assert!(!app.trust_windows_roots);
+    }
+}
+
+#[test]
 fn newly_opened_pdfs_use_the_default_workspace() {
     use pdfcraft_ui_egui::{LeftPanel, Mode};
     let mut app = PdfCraftApp::new();
@@ -1755,7 +1844,7 @@ fn closing_the_last_active_tab_selects_the_previous_one_then_home() {
         assert!(app.session.get(ids[removed]).is_none());
     }
     assert_eq!(h.state().active, None);
-    h.get_by_label_contains("Welcome to PdfCraft");
+    h.get_by_label_contains("Welcome to Leafy PDF");
 }
 
 #[test]

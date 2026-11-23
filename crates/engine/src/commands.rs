@@ -195,6 +195,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("create.multiple", "Create PDF from multiple files…", FILE, None, Nothing, "files"),
     c("create.multiple_separate", "Create separate PDFs…", FILE, None, Nothing, "files"),
     c("create.images", "Create PDF from images…", FILE, None, Nothing, "image"),
+    c("create.scanner", "Create PDF from a scanner…", FILE, None, Nothing, "image"),
     c("create.clipboard", "Create PDF from clipboard", FILE, None, Nothing, "copy-plus"),
     c("page.combine", "Combine files…", FILE, None, Nothing, "files"),
     c("file.save", "Save", FILE, Some(Shortcut::cmd("S")), Document, "save"),
@@ -397,6 +398,10 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("a11y.alt_text", "Add alternate text…", None, None, Modification, "image"),
     c("a11y.autotag_fields", "Tag form fields", None, None, Modification, "tag"),
     c("a11y.tags", "Tags panel", None, None, Document, "tag"),
+    c("a11y.read_page", "Read this page aloud", None, None, Copying, "book-open"),
+    c("a11y.read_to_end", "Read to the end of the document aloud", None, None, Copying, "book-open"),
+    c("a11y.read_pause", "Pause or resume reading aloud", None, None, Document, "book-open"),
+    c("a11y.read_stop", "Stop reading aloud", None, None, Document, "square"),
     c("export.all_images", "Export all images…", FILE, None, Copying, "image"),
     c("edit.header_footer", "Add header & footer…", None, None, Modification, "heading"),
     c("edit.header_footer.update", "Update header & footer…", None, None, Marks(crate::MarkKind::HeaderFooter), "heading"),
@@ -436,12 +441,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     c("prepress.hairlines", "Fix hairlines…", None, None, Modification, "minus"),
     c("page.properties", "Page properties…", PAGES, None, Modification, "info"),
     c("help.shortcuts", "Keyboard shortcuts", HELP, None, Nothing, "circle-help"),
-    c("help.discord", "Join the ArtCraft Discord", HELP, None, Nothing, "messages-square"),
-    c("help.app_page", "PdfCraft web page", HELP, None, Nothing, "globe"),
-    c("help.github", "PdfCraft on GitHub", HELP, None, Nothing, "code-xml"),
-    c("help.website", "ArtCraft website", HELP, None, Nothing, "external-link"),
-    c("help.check_updates", "Check for updates…", HELP, None, Nothing, "cloud"),
-    c("help.about", "About PdfCraft", HELP, None, Nothing, "info"),
+    c("help.about", "About Leafy PDF", HELP, None, Nothing, "info"),
 ];
 
 pub fn command(id: &str) -> Option<&'static CommandSpec> {

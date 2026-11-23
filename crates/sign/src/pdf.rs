@@ -107,6 +107,21 @@ pub struct SignatureInfo {
 }
 
 impl SignatureInfo {
+    /// The line Acrobat writes in place of a signer's baked-in "Signature Not Verified" caption once
+    /// the signature verifies: "Document certified by NAME <email>." for a certification signature.
+    /// `None` for any other verdict, where the signer's caption stays.
+    pub fn verified_caption(&self) -> Option<String> {
+        if self.status != Status::Valid || self.certify.is_none() {
+            return None;
+        }
+        let name = self.signer.as_deref()?;
+        let email = self.certificate.as_ref().and_then(|c| c.signer_email());
+        Some(match email {
+            Some(email) => format!("Document certified by {name} <{email}>."),
+            None => format!("Document certified by {name}."),
+        })
+    }
+
     /// The one-line summary under the signature in the Signatures panel, in English and listed in
     /// [`WORDINGS`] for an interface to say in its own language.
     pub fn summary(&self) -> &'static str {

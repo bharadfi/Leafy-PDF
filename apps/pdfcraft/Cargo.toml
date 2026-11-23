@@ -1,21 +1,26 @@
 [package]
 name = "pdfcraft"
-description = "PdfCraft desktop app"
+description = "Leafy PDF desktop app"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[[bin]]
+name = "leafypdf"
+path = "src/main.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-# Help ▸ Check for updates (issue #28): one HTTPS request to GitHub, over rustls with the OS's
-# trusted roots. No bundled root list (webpki-roots and webpki-root-certs are CDLA-licensed).
 pdfcraft-ui-egui = { workspace = true }
 # `build_info`: the version and compile-time build label for `--version` and the log.
 pdfcraft-engine = { workspace = true }
 # `owner_only`: the --control file is restricted to its user on Windows (#3922).
 pdfcraft-platform = { workspace = true }
+# `--thumbnail` (src/thumbnail.rs): one page for Explorer's thumbnail handler, and the PNG of the protected-file tile.
+pdfcraft-render = { workspace = true }
+png = "0.18"
 # wgpu draws; OpenGL (glow) is the fallback when wgpu can't start on an old or unusual GPU or
 # driver (#461, #435, #392), and can be chosen with PDFCRAFT_RENDERER=gl.
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "glow", "accesskit", "wayland", "x11", "persistence", "links", "clipboard"] }
@@ -72,6 +77,3 @@ winit = { version = "0.30", default-features = false }
 [build-dependencies]
 # Icon + VERSIONINFO for pdfcraft.exe; build.rs only uses it when targeting Windows.
 winresource = "0.1"
-
-[target.'cfg(windows)'.dependencies]
-craft-update = { workspace = true }

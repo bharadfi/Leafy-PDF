@@ -66,7 +66,7 @@ fn issuers(certificate: &Certificate) -> Vec<Certificate> {
     // The chain is built even when it doesn't end at a trusted root (a private CA, an expired
     // certificate); whether the signer is trusted is decided when the signature is validated.
     let _ = trust.evaluate_with_error();
-    // `SecTrust::chain` needs macOS 12; PdfCraft runs on macOS 11 (packaging/macos/package.sh).
+    // `SecTrust::chain` needs macOS 12; the app targets macOS 11.
     #[allow(deprecated)]
     let chain: Vec<SecCertificate> = (0..trust.certificate_count()).filter_map(|i| trust.certificate_at_index(i)).collect();
     chain.iter().map(SecCertificate::to_der).filter(|der| *der != certificate.raw).filter_map(|der| Certificate::parse(&der).ok()).collect()

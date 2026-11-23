@@ -108,6 +108,8 @@ impl PdfCraftApp {
             "invert_middle_drag": self.invert_middle_drag,
             "animation_effects": self.animation_effects,
             "default_mode": self.default_mode,
+            "autosave_minutes": self.autosave_minutes,
+            "trust_windows_roots": self.trust_windows_roots,
             "default_layout": canvas::display_token(self.view_defaults.layout, self.view_defaults.continuous),
             "default_zoom": self.view_defaults.zoom_name(),
             "always_default_view": self.always_default_view,
@@ -182,9 +184,6 @@ impl PdfCraftApp {
         // The Print dialog's own paper sizes (print.page-setup).
         v["print_custom_papers"] = serde_json::json!(self.print_draft.custom_papers);
         v["show_page_edge_shadows"] = self.show_page_edge_shadows.into();
-        // Not `check_updates_at_start`: that key was an opt-in of its own, off unless chosen, and
-        // settings written then would turn this off unasked.
-        v["update_check_at_start"] = self.update_check_at_start.into();
         v["hotbar"] = serde_json::to_value(&self.hotbar).unwrap_or_default();
         v["comment_tool_pinned"] = serde_json::Value::Bool(self.comment_prefs.pinned);
         v["show_secured_notice"] = serde_json::Value::Bool(self.show_secured_notice);
@@ -267,9 +266,6 @@ impl PdfCraftApp {
         if let Some(on) = v["reload_changed_files"].as_bool() {
             self.reload_changed_files = on;
         }
-        if let Some(on) = v["update_check_at_start"].as_bool() {
-            self.update_check_at_start = on;
-        }
         if let Some(on) = v["show_secured_notice"].as_bool() {
             self.show_secured_notice = on;
         }
@@ -304,6 +300,10 @@ impl PdfCraftApp {
         }
         if let Ok(mode) = serde_json::from_value::<Mode>(v["default_mode"].clone()) {
             self.default_mode = mode;
+        }
+        // Only values the dialog offers are taken: anything else (an edited file, an older build) keeps the default.
+        if let Some(minutes) = v["autosave_minutes"].as_u64().and_then(|m| u32::try_from(m).ok()).filter(|m| crate::AUTOSAVE_MINUTES.contains(m)) {
+            self.autosave_minutes = minutes;
         }
         if let Some((layout, continuous)) = v["default_layout"].as_str().and_then(canvas::parse_display_token) {
             (self.view_defaults.layout, self.view_defaults.continuous) = (layout, continuous);
@@ -584,6 +584,10 @@ impl PdfCraftApp {
         if let Ok(pems) = serde_json::from_value::<Vec<String>>(v["trusted"].clone()) {
             let certs = pems.iter().filter_map(|p| pdfcraft_engine::sign::x509::load_certificates(p.as_bytes()).ok()).flatten().collect();
             self.apply_trusted_certificates(certs);
+        }
+        if v["trust_windows_roots"].as_bool() == Some(true) {
+            self.trust_windows_roots = true;
+            self.apply_windows_roots();
         }
     }
 }
