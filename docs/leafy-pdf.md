@@ -1,6 +1,6 @@
-# Leafy PDF: what changed from PdfCraft 0.16.1
+# Leafy PDF: what changed from PdfCraft 0.22.0
 
-Leafy PDF is built from the PdfCraft 0.16.1 source. This file records what was changed, what was
+Leafy PDF is built from the PdfCraft 0.22.0 source. This file records what was changed, what was
 removed and why, so the removed code does not need to be kept around. Internal crate names stay
 `pdfcraft-*` (the project is the reference); only what a person or the operating system sees changed.
 
@@ -23,16 +23,15 @@ removed and why, so the removed code does not need to be kept around. Internal c
 | Help entries: PdfCraft web page, PdfCraft on GitHub, ArtCraft website, Join the ArtCraft Discord | `menus.rs`, `commands.rs` (engine and UI) |
 | The links table (`DISCORD`, `WEBSITE`, `APP_PAGE`, `GITHUB`, `LINKS`) | `crates/engine/src/links.rs` (the document-link safety checks in that file stay) |
 | ArtCraft wordmark, ArtCraft mark and the community buttons in About | `widgets.rs`, `dialogs.rs` |
-| Help ▸ Check for updates, the start-up update check and the update dialog | `platform/updates.rs`, `craft-update` dependency, `UPDATE_APP`, `--finish-update` hand-off; it would have offered PdfCraft releases |
+| Help ▸ Check for updates, the start-up update check and the update dialog | `platform/updates.rs`, the `craft-update` dependency, the "check at start" preference and the `--finish-update` hand-off; it would have offered PdfCraft releases |
 | Discord and ArtCraft lines in the CLI banner and the MCP server info | `apps/pdfcraft-cli`, `crates/automation/src/mcp.rs` |
 | Discord, About and Help links in the installer's Add/Remove Programs entry | `packaging/windows/pdfcraft.wxs` |
 | PrintCraft settings migration (a new app has no such folders) | `apps/pdfcraft/src/main.rs` |
-| 340 translation entries for the strings above (10 strings x 34 languages) | `crates/ui-egui/src/i18n/*.tsv` |
 | The launcher-only branch of the install-policy checker | `packaging/windows/check-install-policy.ps1` |
 | The `view.check-for-updates` parity entry | `parity/acrobat-features.toml` |
-| Tests for the removed features | `crates/ui-egui/tests/it/links.rs`, `updates.rs`; the layout tests now measure against the shortcuts button instead of Discord |
+| Tests for the removed features | `updates.rs`, two update-prompt tests in `comments.rs`; the layout tests now measure against the shortcuts button instead of Discord |
 | Linux (AppImage, deb, rpm, Flatpak), macOS (app bundle, DMG, notarization) and FreeBSD packaging | `packaging/linux/`, `packaging/macos/`, `packaging/freebsd/` (FreeBSD's script was built on the Linux folder) |
-| Tests that read those files | the desktop-entry test in `apps/pdfcraft`, the X11 desktop-file check in `winit_x11_dpi.rs`, the Info.plist checks in `xtask/src/gates.rs` and `macos_association.rs` |
+| Tests that read those files | the desktop-entry and flatpak tests in `apps/pdfcraft`, `flatpak_updates.rs`, the Info.plist check in `i18n/tests.rs` |
 | The two macOS DMG background assets | `ATTRIBUTION.toml` / `ATTRIBUTION.md` |
 | The red PDF file icon and its licence file | `assets/app-icon/pdfcraft-document.{svg,ico}`, `LICENSE-document.txt` (also dropped from the installer's files, policy and `NOTICE`); PDF files now use the Leafy PDF tile |
 | Upstream's multi-platform release guide | `docs/releasing.md`, replaced by a short guide to the Windows installer build |
@@ -40,8 +39,8 @@ removed and why, so the removed code does not need to be kept around. Internal c
 ## Renamed to Leafy PDF
 
 - **Visible text** in string literals: window title, About, Home, dialogs, menus, toasts, Windows
-  file properties. 598 translation entries across 34 languages were renamed with them so
-  translations still match.
+  file properties. Since 0.22.0 the translations live outside the repository (craft-i18n), so a renamed
+  string shows in English in the other languages until it is translated there.
 - **Program:** `leafypdf.exe` (Cargo `[[bin]] name = "leafypdf"`). The command-line tool keeps the name
   `pdfcraft-cli`.
 - **Per-user data, a fresh start sharing nothing with PdfCraft:** `LeafyPdf` (settings, recovery,
@@ -52,13 +51,15 @@ removed and why, so the removed code does not need to be kept around. Internal c
 
 ## Added
 
-- **Folder chooser in the installer** (`packaging/windows/installer-ui.wxs`): after the scope page, a
-  "Where do you want to install?" page with a path box and Browse (drives, folders, Up, New folder).
+- **Install folder:** upstream's installer has had its own folder chooser since 0.18 (an "Install to" box and Browse on the welcome page), so Leafy PDF uses that one.
 - **Explorer thumbnails and the file icon** (crates/thumbs, pps/pdfcraft/src/thumbnail.rs): a small thumbnail-handler library, installed beside the app and registered on the LeafyPdf.Document ProgID, asks leafypdf.exe --thumbnail for a picture of page 1. A file that needs a password gets the Leafy PDF tile instead of a page. PDF files use the Leafy PDF tile as their icon instead of the red PDF icon. The new crate is the one place in the workspace that uses `unsafe` (COM), so it does not inherit the workspace lint.
-- **Signatures:** the signer's baked validity layer is replaced by a tick, cross or question mark for
-  the current verdict, on screen and in Print to PDF (`crates/sign/src/pdf/listing.rs`,
-  `crates/engine/src/document.rs`); trusted certificates can be removed again from the signature
-  panel and the Certificate Viewer.
+- **Signatures, on top of upstream's status layers.** Since 0.22.0 upstream redraws the signer's named
+  validity layers itself (`crates/sign/src/status_layers.rs`). Leafy PDF adds to it: a round, translucent
+  badge behind the icon so the signer's text stays readable; *Document certified by NAME <email>.* in place of
+  the baked caption for a verifying certification signature (`SignatureInfo::verified_caption`); Remove from
+  trusted certificates in the signature panel and the Certificate Viewer; the email read from the
+  certificate's subject alternative name (`x509::san_emails`).
+- **Read Out Loud, Scanner, Preferences (autosave interval, Windows roots)**, as in the README.
 
 ## Deliberately unchanged
 

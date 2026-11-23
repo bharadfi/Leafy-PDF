@@ -17,7 +17,7 @@
   (`signtool verify /pa`) is replaced by a check that the signature is intact and made by that certificate.
 
 .EXAMPLE
-  pwsh packaging/windows/sign.ps1 dist/leafypdf.exe dist/Pdfcraft.msi
+  pwsh packaging/windows/sign.ps1 dist/leafypdf.exe dist/leafypdf.msi
 #>
 param(
   [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]

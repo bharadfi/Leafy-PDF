@@ -6,67 +6,59 @@
       <TextStyle Id="InstallerTitle" FaceName="Segoe UI" Size="12" Bold="yes" />
       <Property Id="DefaultUIFont" Value="InstallerNormal" />
 
-      <Dialog Id="InstallWelcome" Width="370" Height="180" Title="[ProductName] Setup">
+      <Dialog Id="InstallWelcome" Width="370" Height="210" Title="[ProductName] Setup">
         <Control Id="Title" Type="Text" X="20" Y="20" Width="330" Height="25" Text="{\InstallerTitle}Install [ProductName]" />
-        <Control Id="Description" Type="Text" X="20" Y="55" Width="330" Height="40" Text="Setup will install [ProductName] for all users and add it to the Start menu. Click Install to continue." HideCondition="ALLUSERS &lt;&gt; 1" ShowCondition="ALLUSERS = 1" />
-        <Control Id="DescriptionUser" Type="Text" X="20" Y="55" Width="330" Height="40" Text="Setup will install [ProductName] only for your account and add it to the Start menu. Click Install to continue." HideCondition="ALLUSERS = 1" ShowCondition="ALLUSERS &lt;&gt; 1" />
-        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="105" Width="330" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
-        <Control Id="PdfContextMenu" Type="CheckBox" X="20" Y="123" Width="330" Height="17" Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &quot;&amp;Edit with Leafy PDF&quot; to the right-click menu of PDF files" />
-        <Control Id="Install" Type="PushButton" X="195" Y="145" Width="75" Height="23" Default="yes" DefaultCondition="ALLUSERS = 1" ElevationShield="yes" HideCondition="ALLUSERS &lt;&gt; 1" ShowCondition="ALLUSERS = 1" Text="&amp;Install">
-          <Publish Event="EndDialog" Value="Return" />
+        <Control Id="Description" Type="Text" X="20" Y="50" Width="330" Height="30" Text="Setup will install [ProductName] for all users and add it to the Start menu. Click Install to continue." HideCondition="ALLUSERS &lt;&gt; 1" ShowCondition="ALLUSERS = 1" />
+        <Control Id="DescriptionUser" Type="Text" X="20" Y="50" Width="330" Height="30" Text="Setup will install [ProductName] only for your account and add it to the Start menu. Click Install to continue." HideCondition="ALLUSERS = 1" ShowCondition="ALLUSERS &lt;&gt; 1" />
+        <!-- The install folder (#1139): typed here, or picked in the browse dialog. It starts on the
+             folder install-policy.wxi chose for the scope (the recorded one on an update). Install
+             validates and sets it (SetTargetPath) before the dialog closes. -->
+        <Control Id="InstallToLabel" Type="Text" X="20" Y="84" Width="330" Height="12" Text="Install &amp;to:" />
+        <Control Id="InstallTo" Type="PathEdit" X="20" Y="98" Width="262" Height="18" Property="INSTALLFOLDER" />
+        <Control Id="Browse" Type="PushButton" X="288" Y="96" Width="62" Height="22" Text="B&amp;rowse…">
+          <Publish Event="SpawnDialog" Value="BrowseFolder" />
         </Control>
-        <Control Id="InstallUser" Type="PushButton" DefaultCondition="ALLUSERS &lt;&gt; 1" HideCondition="ALLUSERS = 1" ShowCondition="ALLUSERS &lt;&gt; 1" X="195" Y="145" Width="75" Height="23" Text="&amp;Install">
-          <Publish Event="EndDialog" Value="Return" />
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="126" Width="330" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="Create a &amp;desktop shortcut" />
+        <Control Id="PdfContextMenu" Type="CheckBox" X="20" Y="144" Width="330" Height="17" Property="INSTALLPDFCONTEXTMENU" CheckBoxValue="1" Text="Add &amp;Edit and Combine files to the right-click menu of PDF files" />
+        <Control Id="Install" Type="PushButton" X="195" Y="175" Width="75" Height="23" Default="yes" DefaultCondition="ALLUSERS = 1" ElevationShield="yes" HideCondition="ALLUSERS &lt;&gt; 1" ShowCondition="ALLUSERS = 1" Text="&amp;Install">
+          <Publish Event="SetTargetPath" Value="INSTALLFOLDER" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
         </Control>
-        <Control Id="Cancel" Type="PushButton" X="280" Y="145" Width="70" Height="23" Cancel="yes" Text="Cancel">
+        <Control Id="InstallUser" Type="PushButton" DefaultCondition="ALLUSERS &lt;&gt; 1" HideCondition="ALLUSERS = 1" ShowCondition="ALLUSERS &lt;&gt; 1" X="195" Y="175" Width="75" Height="23" Text="&amp;Install">
+          <Publish Event="SetTargetPath" Value="INSTALLFOLDER" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="280" Y="175" Width="70" Height="23" Cancel="yes" Text="Cancel">
           <Publish Event="EndDialog" Value="Exit" />
         </Control>
       </Dialog>
 
-      <!-- Where to install: shown after the scope page, with the folder that page's choice implies
-           already filled in. The path box edits INSTALLFOLDER through CRAFT_INSTALLDIR (the name of the
-           directory property), exactly as Browse and SetTargetPath expect. -->
-      <Property Id="CRAFT_INSTALLDIR" Value="INSTALLFOLDER" />
-      <Dialog Id="CraftFolderDlg" Width="370" Height="220" Title="[ProductName] Setup" NoMinimize="yes">
-        <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="30" Text="{\InstallerTitle}Where do you want to install [ProductName]?" />
-        <Control Id="Info" Type="Text" X="20" Y="50" Width="330" Height="30" Text="Setup will install into the folder below. Type a path or click Browse to pick any drive and folder." />
-        <Control Id="InstallPathLabel" Type="Text" X="20" Y="92" Width="330" Height="10" Text="Install &amp;location:" />
-        <Control Id="InstallPath" Type="PathEdit" X="20" Y="104" Width="250" Height="18" Property="CRAFT_INSTALLDIR" Indirect="yes" />
-        <Control Id="InstallBrowse" Type="PushButton" X="280" Y="103" Width="70" Height="20" Text="&amp;Browse...">
-          <Publish Property="_BrowseProperty" Value="[CRAFT_INSTALLDIR]" Order="1" />
-          <Publish Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+      <!-- Windows Installer's own folder browser, in native controls (#1139): the drive and parent
+           list, the folders at the current level, Up, New folder, and the full path to type.
+           OK validates and sets the folder; Cancel puts back what the welcome dialog had. -->
+      <Dialog Id="BrowseFolder" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Title" Type="Text" X="20" Y="15" Width="330" Height="25" Text="{\InstallerTitle}Choose an install folder" />
+        <Control Id="LookInLabel" Type="Text" X="20" Y="45" Width="100" Height="12" Text="&amp;Look in:" />
+        <Control Id="DirectoryCombo" Type="DirectoryCombo" X="20" Y="58" Width="215" Height="80" Property="INSTALLFOLDER" Fixed="yes" Remote="yes">
+          <Subscribe Event="IgnoreChange" Attribute="IgnoreChange" />
         </Control>
-        <Control Id="Next" Type="PushButton" X="214" Y="182" Width="66" Height="20" Default="yes" Text="&amp;Next">
-          <Publish Event="SetTargetPath" Value="[CRAFT_INSTALLDIR]" Order="1" />
+        <Control Id="Up" Type="PushButton" X="245" Y="57" Width="40" Height="19" Text="&amp;Up">
+          <Publish Event="DirectoryListUp" Value="0" />
+        </Control>
+        <Control Id="NewFolder" Type="PushButton" X="290" Y="57" Width="60" Height="19" Text="&amp;New folder">
+          <Publish Event="DirectoryListNew" Value="0" />
+        </Control>
+        <Control Id="DirectoryList" Type="DirectoryList" X="20" Y="82" Width="330" Height="105" Property="INSTALLFOLDER" Sunken="yes" TabSkip="no" />
+        <Control Id="FolderLabel" Type="Text" X="20" Y="195" Width="100" Height="12" Text="&amp;Folder name:" />
+        <Control Id="PathEdit" Type="PathEdit" X="20" Y="209" Width="330" Height="18" Property="INSTALLFOLDER" />
+        <Control Id="OK" Type="PushButton" X="195" Y="237" Width="75" Height="23" Default="yes" Text="OK">
+          <Publish Event="SetTargetPath" Value="INSTALLFOLDER" Order="1" />
           <Publish Event="EndDialog" Value="Return" Order="2" />
         </Control>
-        <Control Id="Cancel" Type="PushButton" X="290" Y="182" Width="60" Height="20" Cancel="yes" Text="Cancel">
-          <Publish Event="EndDialog" Value="Exit" />
-        </Control>
-      </Dialog>
-
-      <!-- The folder browser: drives and folders, Up, New folder and a typed path. -->
-      <Dialog Id="BrowseDlg" Width="370" Height="230" Title="[ProductName] Setup" NoMinimize="yes">
-        <Control Id="PathEdit" Type="PathEdit" X="20" Y="170" Width="330" Height="18" Property="_BrowseProperty" Indirect="yes" />
-        <Control Id="OK" Type="PushButton" X="214" Y="196" Width="66" Height="20" Default="yes" Text="OK">
-          <Publish Event="SetTargetPath" Value="[_BrowseProperty]" Order="1" />
-          <Publish Event="EndDialog" Value="Return" Order="2" />
-        </Control>
-        <Control Id="Cancel" Type="PushButton" X="284" Y="196" Width="66" Height="20" Cancel="yes" Text="Cancel">
+        <Control Id="Cancel" Type="PushButton" X="280" Y="237" Width="70" Height="23" Cancel="yes" Text="Cancel">
           <Publish Event="Reset" Value="0" Order="1" />
           <Publish Event="EndDialog" Value="Return" Order="2" />
         </Control>
-        <Control Id="DirectoryCombo" Type="DirectoryCombo" X="20" Y="54" Width="266" Height="80" Property="_BrowseProperty" Indirect="yes" Fixed="yes" Remote="yes" />
-        <Control Id="Up" Type="PushButton" X="292" Y="54" Width="28" Height="19" Text="&amp;Up">
-          <Publish Event="DirectoryListUp" Value="0" />
-        </Control>
-        <Control Id="NewFolder" Type="PushButton" X="324" Y="54" Width="30" Height="19" Text="&amp;New">
-          <Publish Event="DirectoryListNew" Value="0" />
-        </Control>
-        <Control Id="DirectoryList" Type="DirectoryList" X="20" Y="82" Width="330" Height="70" Property="_BrowseProperty" Sunken="yes" Indirect="yes" />
-        <Control Id="BrowseTitle" Type="Text" X="20" Y="12" Width="330" Height="20" Text="{\InstallerTitle}Choose install folder" TabSkip="yes" />
-        <Control Id="ComboLabel" Type="Text" X="20" Y="42" Width="200" Height="10" Text="Look &amp;in (drive / folder):" TabSkip="yes" />
-        <Control Id="PathLabel" Type="Text" X="20" Y="158" Width="330" Height="10" Text="&amp;Folder name:" TabSkip="yes" />
       </Dialog>
 
       <Dialog Id="InstallMaintenance" Width="370" Height="180" Title="[ProductName] Setup">
@@ -158,7 +150,6 @@
       </Dialog>
 
       <InstallUISequence>
-        <Show Dialog="CraftFolderDlg" Before="InstallWelcome" Condition="UILevel = 5 AND NOT Installed AND NOT REMOVE" />
         <Show Dialog="InstallWelcome" Before="InstallMaintenance" Condition="UILevel = 5 AND NOT Installed" />
         <Show Dialog="InstallMaintenance" Before="InstallProgress" Condition="UILevel = 5 AND Installed AND NOT REMOVE AND NOT REINSTALL" />
         <Show Dialog="InstallProgress" Before="ExecuteAction" Condition="UILevel = 5" />

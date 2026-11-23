@@ -80,7 +80,6 @@ Leafy PDF is a custom build of an open-source Rust PDF engine, shaped for everyd
 | **Explorer** | A snapshot of page 1 as the thumbnail of each PDF, and the green Leafy PDF tile (never a page) for password-protected files. The PDF file icon is the same tile. |
 | **Reading aloud** | *Read this page aloud*, *Read to the end of the document aloud*, *Pause or resume* and *Stop*, using the voice Windows already has. No speech engine is shipped. |
 | **Scanning** | *Create ▸ PDF from a scanner* opens Windows' own scan window. *Scan another page* gathers several scans into one PDF. |
-| **Compare** | Compare only the pages you choose in each file, in the dialog and for scripts. The report and the comments follow the same pages. |
 | **Preferences** | How often unsaved changes are autosaved (1 to 15 minutes) and how many recent files are remembered. |
 | **Interface** | The window title bar and the document tabs share a single row. Its own logo and icons. |
 | **Quiet by design** | No account, no telemetry, no update check, no banners or promotional links, and no cloud or AI features. Its settings and trusted certificates live in their own `LeafyPdf` folder and are shared with no other program. |
@@ -151,7 +150,7 @@ Documents restricted by their author show a clear notice, and Leafy PDF honours 
 - **Layers:** switch optional content on and off and the page re-renders instantly.
 - **Comments** appear as threaded conversations; **attachments** can be opened or saved.
 - **Scan & OCR:** recognise text in scans with the bundled offline models, or scan straight from a scanner.
-- **Compare files:** word-by-word text differences and visual differences, side by side, for whole files or chosen pages.
+- **Compare files:** word-by-word text differences and visual differences, side by side,.
 - **More tools on the home screen:** Export, Create, Combine, Organize, Edit, Add comments, Scan & OCR, Protect, Redact, Compress, Prepare a form, Add a stamp and Use a certificate. Press Ctrl-K to search every tool and command.
 
 ---

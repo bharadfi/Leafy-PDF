@@ -143,14 +143,17 @@
            ones point at a Windows Installer descriptor rather than the program, which Windows can't
            use as a file handler (#107), and 0.2.1's advertised one went missing from the Start menu
            (#143). Each has its own component with an HKLM key path, so Windows Installer removes it
-           on uninstall; in this per-machine package both folders are the all-users ones. -->
+           on uninstall; in this per-machine package both folders are the all-users ones. They take
+           their icon from leafypdf.exe, not the Icon table: Windows Installer keeps that copy under
+           the ProductCode, which every release changes, so a taskbar pin made from a shortcut that
+           named it shows a blank icon once an update removes the old release. -->
       <Component Id="LeafyStartMenuShortcut" Directory="ProgramMenuFolder" Guid="EBF5D534-8296-5C8E-B4BB-1D9CFB6F0143">
-        <Shortcut Id="StartMenuShortcut" Name="Leafy PDF" Description="Leafy PDF PDF workbench" Target="[#LeafyExe]" WorkingDirectory="INSTALLFOLDER" Icon="LeafyIcon.ico" IconIndex="0" />
+        <Shortcut Id="StartMenuShortcut" Name="Leafy PDF" Description="Leafy PDF PDF workbench" Target="[#LeafyExe]" WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKMU" Key="Software\LeafyPdf\Shortcuts" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
       </Component>
 
       <Component Id="LeafyDesktopShortcut" Directory="DesktopFolder" Guid="FD66D332-E60C-5B1B-BD2C-119924A5DB95" Condition="INSTALLDESKTOPSHORTCUT = 1">
-        <Shortcut Id="DesktopShortcut" Name="Leafy PDF" Description="Leafy PDF PDF workbench" Target="[#LeafyExe]" WorkingDirectory="INSTALLFOLDER" Icon="LeafyIcon.ico" IconIndex="0" />
+        <Shortcut Id="DesktopShortcut" Name="Leafy PDF" Description="Leafy PDF PDF workbench" Target="[#LeafyExe]" WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKMU" Key="Software\LeafyPdf\Shortcuts" Name="Desktop" Type="integer" Value="1" KeyPath="yes" />
       </Component>
 
@@ -166,6 +169,13 @@
         <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Edit" Name="Icon" Value="&quot;[#LeafyExe]&quot;,0" Type="string" />
         <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Edit" Name="MultiSelectModel" Value="Document" Type="string" />
         <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Edit\command" Value="&quot;[#LeafyExe]&quot; &quot;%1&quot;" Type="string" />
+        <!-- "Combine files in Leafy PDF" (#585), on the same switch: each selected file starts one
+             launch of leafypdf.exe with the combine option, and the running Leafy PDF collects them into its Combine
+             files tab (single_instance). -->
+        <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Combine" Value="Combine files in Leafy PDF" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Combine" Name="Icon" Value="&quot;[#LeafyExe]&quot;,0" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Combine" Name="MultiSelectModel" Value="Document" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\SystemFileAssociations\.pdf\shell\LeafyPdf.Combine\command" Value="&quot;[#LeafyExe]&quot; --combine &quot;%1&quot;" Type="string" />
       </Component>
 
       <!-- Image context menu (#190): "Create PDF with Leafy PDF…" opens the DPI chooser, without
